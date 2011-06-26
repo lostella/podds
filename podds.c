@@ -75,6 +75,8 @@
 #define TOTAL		100000
 
 #define SUITSHIFT	18
+
+/* maschere per manipolare opportunamente le bitmap utilizzate */
 #define SUITMASK	0x003C0000 // 3932160
 #define BITRANKMASK	0x0003FFF0 // 262128
 #define RANKMASK	0x0000000F // 15
