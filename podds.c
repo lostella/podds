@@ -18,51 +18,47 @@
 
 **************************************************************************
 
-  *** UTILIZZO
-  parametri: <numero giocatori> <carta 1> <carta 2> [<carta 3> ... <carta 7>]
-  dove le prime due carte sono la mano, le altre (opzionali) sono quelle in tavola
-  le carte sono indicate da un indice che varia da 0 a 51, e sono raggruppate
-  per seme. poiche' nel texas hold 'em i semi sono totalmente indifferenti
-  si ha:
-    seme 1: 0-12
-    seme 2: 13-25
-    seme 3: 26-38
-    seme 4: 29-51
-  a numero maggiore corrisponde carta di valore maggiore, quindi ad esempio
-  i numeri 0, 13, 26, 29 corrispondono ai "due", mentre 12, 25, 38, 51 sono
-  gli "assi".
+  *** USAGE
+  parameters: <number of players> <card 1> <card 2> [<card 3> ... <card 7>]
+  where the first two cards are the player's hand, while the others (optional)
+  are those on the table.
+  cards are natural numbers in the range [0, 51], grouped by suit. since in texas
+  hold 'em poker suits are no different from each other, one thus has:
+    suit 1: 0-12
+    suit 2: 13-25
+    suit 3: 26-38
+    suit 4: 29-51
+  bigger numbers corresponds to higher cards, so for instance cards 0, 13, 26, 29
+  are the "twos", while 12, 25, 38, 51 are the "aces".
+  the rank of a card k is obviously given by k%13;
+  its suit is obviously given by k/13 (euclidean division).
+  the probability of winning is printed (three significant digits) to standard output.
   
-  *** MAIN
-  il programma prende atto della configurazione di carte note (mano+tavola)
-  e le rimuove dal mazzo. dopodiche' esegue un numero prefissato di partite casuali
-  durante le quali:
-  - distribuisce casualmente le carte agli altri giocatori;
-  - estrae le carte che rimangono da mettere in tavola;
-  - verifica se si e' vinto oppure no.
-  alla fine della simulazione la percentuale di partite casuali vinte rispetto
-  al totale di quelle giocate costituisce	la probabilita' di vittoria della
-  configurazione. nota: le carte estratte (essenzialmente sono numeri interi
-  da 0 a 51) vengono preventivamente convertite in un formato piu' conveniente
-  per la valutazione delle mani.
+  the lack of usability of this tool and its nice performances makes it particularly
+  useful for embedding it in much more usable programs.
+    
+  *** MAIN PROGRAM
+  the main program starts by removing the known cards from the deck; afterwards
+  it plays a certain amount of random games during which:
+  - cards for every other player are drawn;
+  - remaining cards on the table are drawn;
+  - checks whether or not the player has won the game.
+  in order to accomplish this very last phase the cards that were drawn are
+  converted to a format which is more suitable for the computation: see BITCARD section.
+  the amount of won games over the total number of games played is an approximation
+  of the probability of winning given the known cards.
   
-  *** EVAL7
-  per stabilire quale giocatore vince si assegna, tramite la funzione eval7,
-  un punteggio intero alle 7 carte (mano+tavola) di ciascun giocatore;
-  questo punteggio, per le regole del gioco, sara' il massimo punteggio ottenibile
-  prendendo 5 carte dalle 7 utilizzabili: la matrice combs contiene 21 righe
-  ognuna delle quali costituisce una differente combinazione degli indici 0,...,6
-  presi cinque a cinque. la funzione eval7 utilizza una alla volta queste
-  serie di indici per costruire una combinazione di 5 carte, e poi richiama la
-  funzione eval5 per valutarla.
+  *** EVAL7 & EVAL5
+  in order to determine which player wins the game a score is assigned to the
+  seven cards (hand+table) of each player. this score is the maximum score of
+  the twenty-one combinations of five cards obtainable from seven. the eval5 function
+  calculates the score for each of these twenty-one combinations. it should give a higher
+  integer score for a stronger combination, so higher scores are matched first: there's no
+  need to look for three-of-a-kind when we've already found a full-house or a straight or
+  whatever.
   
-  *** EVAL5
-  questa funzione deve associare ad ogni
-  combinazione cs di cinque carte un valore intero (a 32 bit) piu' alto per le
-  combinazioni piu' forti, piu' basso per le combinazioni piu' deboli.
-  la funzione procede confrontando le carte prima con i punti piu' alti e poi
-  con quelli piu' bassi, in modo, ad esempio, da fermarsi non appena si sia
-  verificato che c'e' un poker d'assi tra le cinque carte: sara' inutile andare
-  a verificare se si trovi anche un tris o una doppia coppia.
+  *** BITCARD
+  [i'm working on it]
 
 *************************************************************************/
 
@@ -71,22 +67,22 @@
 #include <math.h>
 #include <stdio.h>
 
-/* numero di partite da giocare per la simulazione montecarlo */
-#define TOTAL		100000
+/* total number of games for the simulation */
+#define TOTAL         100000
 
-#define SUITSHIFT	18
-
-/* maschere per manipolare opportunamente le bitmap utilizzate */
-#define SUITMASK	0x003C0000 // 3932160
-#define BITRANKMASK	0x0003FFF0 // 262128
-#define RANKMASK	0x0000000F // 15
-#define STRAIGHTMASK	0x000001F0 // 496
+/* bitmasks and shifts to manipulate cards properly */
+#define SUITSHIFT     18
+#define SUITMASK      0x003C0000 // 3932160
+#define BITRANKMASK   0x0003FFF0 // 262128
+#define RANKMASK      0x0000000F // 15
+#define STRAIGHTMASK  0x000001F0 // 496
 
 typedef struct {
   int c[52];
   int n;
 } deck;
 
+/* the 21 combinations C(7,5) */
 const int combs[][5] =
   {{0, 1, 2, 3, 4},
    {0, 1, 2, 3, 5},
@@ -110,6 +106,7 @@ const int combs[][5] =
    {1, 3, 4, 5, 6},
    {2, 3, 4, 5, 6}};
 
+/* utility function that gives a random integer in the range [0, hi-1] */
 int randint(int hi) {
   return (int)((float)(rand())/RAND_MAX*hi);
 }
@@ -235,7 +232,7 @@ int eval7(int cs[]) {
   for (i = 0; i<21; i++) {
     ds[0] = cs[combs[i][0]]; //
     ds[1] = cs[combs[i][1]]; //
-    ds[2] = cs[combs[i][2]]; // tutto cio' e' ottimizzabile
+    ds[2] = cs[combs[i][2]]; // TODO: optimize
     ds[3] = cs[combs[i][3]]; //
     ds[4] = cs[combs[i][4]]; //
     v = eval5(ds);
@@ -249,7 +246,7 @@ int better(int cs[], int s) {
   for (i = 0; i<21; i++) {
     ds[0] = cs[combs[i][0]]; //
     ds[1] = cs[combs[i][1]]; //
-    ds[2] = cs[combs[i][2]]; // tutto cio' e' ottimizzabile
+    ds[2] = cs[combs[i][2]]; // TODO: optimize
     ds[3] = cs[combs[i][3]]; //
     ds[4] = cs[combs[i][4]]; //
     v = eval5(ds);
