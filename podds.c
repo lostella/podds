@@ -68,7 +68,7 @@
 #include <stdio.h>
 
 /* total number of games for the simulation */
-#define TOTAL         100000
+#define TOTAL         1000000
 
 /* bitmasks and shifts to manipulate cards properly */
 #define SUITSHIFT     18
@@ -119,11 +119,13 @@ int rank(int i) {
   return i%13;
 }
 
+/* convert a card from integer-form to bitmap-form */
 int bitcard(int i) {
   int r = rank(i);
   return (1<<(SUITSHIFT+suit(i))) | (1<<(r+5)) | (r == 12 ? 1<<4 : 0) | r;
 }
 
+/* allocates a new deck */
 deck * newdeck() {
   int i;
   deck * d = (deck *)malloc(sizeof(deck));
@@ -132,10 +134,13 @@ deck * newdeck() {
   return d;
 }
 
+/* (re)initialize a given deck to a given number n of available cards
+	keeping the first 52-n drawn cards unavailable */
 void initdeck(deck * d, int n) {
   d->n = n;
 }
 
+/* return a random card from deck d and make it unavailable for the future */
 int draw(deck * d) {
   if (d->n > 0) {
     int j = randint(d->n), k;
@@ -148,6 +153,7 @@ int draw(deck * d) {
   return -1;
 }
 
+/* return a CHOSEN card from deck d and make it unavailable for the future */
 void pick(deck * d, int c) {
   int i, m;
   for (i=0; i<d->n; i++) {
@@ -160,12 +166,14 @@ void pick(deck * d, int c) {
   }
 }
 
+/* check for a flush (cs[] must have length >= 5) */
 int flush(int cs[]) {
   int i;
   for (i=1; i<5; i++) if ((cs[i-1] & SUITMASK) != (cs[i] & SUITMASK)) return 0;
   return 1;
 }
 
+/* check for a straight (cs[] must have length >= 5) */
 int straight(int cs[]) {
   int i, disj = cs[0];
   for (i=1; i<5; i++) disj |= cs[i];
@@ -227,6 +235,7 @@ int eval5(int cs[]) {
   return v;
 }
 
+/* find the most valuable five-cards combination out of the seven given cards and return its score */
 int eval7(int cs[]) {
   int i, ds[5], max = -1, v;
   for (i = 0; i<21; i++) {
@@ -241,7 +250,8 @@ int eval7(int cs[]) {
   return max;
 }
 
-int better(int cs[], int s) {
+/* check if there's a five-cards combination among cards cs[] with score higher than s */
+int better7(int cs[], int s) {
   int i, ds[5], v;
   for (i = 0; i<21; i++) {
     ds[0] = cs[combs[i][0]]; //
@@ -278,9 +288,9 @@ int main(int argc, char ** argv) {
     for (j=0; j<np-1; j++) {
       cs[0] = ohs[2*j];
       cs[1] = ohs[2*j+1];
-      if (better(cs, score)) {
-	wininc = 0;
-	break;
+      if (better7(cs, score)) {
+		wininc = 0;
+		break;
       }
     }
     if (wininc) wins++;
