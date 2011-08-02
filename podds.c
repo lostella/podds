@@ -32,7 +32,8 @@
   are the "twos", while 12, 25, 38, 51 are the "aces".
   the rank of a card k is obviously given by k%13;
   its suit is obviously given by k/13 (euclidean division).
-  the probability of winning is printed (three significant digits) to standard output.
+  the probabilities of winning and drawing are printed (three significant digits) to standard output
+  with a newline character '\n' inbetween.
   
   the lack of usability of this tool and its nice performances makes it particularly
   useful for embedding it in much more usable programs.
@@ -76,6 +77,11 @@
 #define BITRANKMASK   0x0003FFF0 // 262128
 #define RANKMASK      0x0000000F // 15
 #define STRAIGHTMASK  0x000001F0 // 496
+
+/* some constants */
+#define LOSS          0
+#define DRAW          1
+#define WIN           2
 
 typedef struct {
   int c[52];
@@ -135,7 +141,7 @@ deck * newdeck() {
 }
 
 /* (re)initialize a given deck to a given number n of available cards
-	keeping the first 52-n drawn cards unavailable */
+    keeping the first 52-n drawn cards unavailable */
 void initdeck(deck * d, int n) {
   d->n = n;
 }
@@ -192,34 +198,34 @@ int eval5(int cs[]) {
   for (i=1; i<5; i++) {
     for (j=0; j<5-i; j++) {
       if ((cs[j] & RANKMASK) < (cs[j+1] & RANKMASK)) {
-	m = cs[j];
-	cs[j] = cs[j+1];
-	cs[j+1] = m;
+        m = cs[j];
+        cs[j] = cs[j+1];
+        cs[j+1] = m;
       }
     }
   }
   for (i=0; i<5; i++) {
     for (j=0; j<5; j++) {
       if (rv[j] == (cs[i] & RANKMASK)) {
-	cv[j]++;
-	break;
+        cv[j]++;
+        break;
       }
       if (rv[j] == -1) {
-	rv[j] = cs[i] & RANKMASK;
-	cv[j]++;
-	break;
+        rv[j] = cs[i] & RANKMASK;
+        cv[j]++;
+        break;
       }
     }
   }
   for (i=1; i<5; i++) {
     for (j=0; j<5-i; j++) {
       if (cv[j] < cv[j+1]) {
-	m = cv[j];
-	cv[j] = cv[j+1];
-	cv[j+1] = m;
-	m = rv[j];
-	rv[j] = rv[j+1];
-	rv[j+1] = m;
+        m = cv[j];
+        cv[j] = cv[j+1];
+        cv[j+1] = m;
+        m = rv[j];
+        rv[j] = rv[j+1];
+        rv[j+1] = m;
       }
     }
   }
@@ -252,7 +258,7 @@ int eval7(int cs[]) {
 
 /* check if there's a five-cards combination among cards cs[] with score higher than s */
 int better7(int cs[], int s) {
-  int i, ds[5], v;
+  int i, ds[5], v, result = WIN;
   for (i = 0; i<21; i++) {
     ds[0] = cs[combs[i][0]]; //
     ds[1] = cs[combs[i][1]]; //
@@ -260,15 +266,16 @@ int better7(int cs[], int s) {
     ds[3] = cs[combs[i][3]]; //
     ds[4] = cs[combs[i][4]]; //
     v = eval5(ds);
-    if (v > s) return 1;
+    if (v > s) return LOSS;
+    if (v == s) result = DRAW;
   }
-  return 0;
+  return result;
 }
 
 int main(int argc, char ** argv) {
   int cs[7], as[7], i, j, np = atoi(argv[1]), cs0, cs1;
   int * ohs = (int *)malloc(2*(np-1)*sizeof(int));
-  int wins = 0, wininc;
+  int wins = 0, draws = 0, result, result1;
   for (i=0; i<argc-2; i++) as[i] = atoi(argv[i+2]);
   for (i=2; i<argc-2; i++) cs[i] = bitcard(as[i]);
   srand(time(NULL));
@@ -284,18 +291,19 @@ int main(int argc, char ** argv) {
     for (j=0; j<2*(np-1); j++) ohs[j] = bitcard(draw(d));
     for (j=argc-2; j<7; j++) cs[j] = bitcard(draw(d));
     score = eval7(cs);
-    wininc = 1;
+    result = WIN;
     for (j=0; j<np-1; j++) {
       cs[0] = ohs[2*j];
       cs[1] = ohs[2*j+1];
-      if (better7(cs, score)) {
-		wininc = 0;
-		break;
-      }
+      result1 = better7(cs, score);
+      if (result1 < result) result = result1;
+      if (result == LOSS) break;
     }
-    if (wininc) wins++;
+    if (result == WIN) wins++;
+    if (result == DRAW) draws++;
   }
   printf("%.3f\n", (float)(wins)/TOTAL);
+  printf("%.3f\n", (float)(draws)/TOTAL);
   free(ohs);
   free(d);
   return 0;
