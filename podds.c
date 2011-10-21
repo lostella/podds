@@ -257,7 +257,7 @@ int eval7(int cs[]) {
 }
 
 /* check if there's a five-cards combination among cards cs[] with score higher than s */
-int better7(int cs[], int s) {
+int comp7(int cs[], int s) {
   int i, ds[5], v, result = WIN;
   for (i = 0; i<21; i++) {
     ds[0] = cs[combs[i][0]]; //
@@ -295,12 +295,12 @@ int main(int argc, char ** argv) {
     for (j=0; j<np-1; j++) {
       cs[0] = ohs[2*j];
       cs[1] = ohs[2*j+1];
-      result1 = better7(cs, score);
+      result1 = comp7(cs, score);
       if (result1 < result) result = result1;
       if (result == LOSS) break;
     }
     if (result == WIN) wins++;
-    if (result == DRAW) draws++;
+    else if (result == DRAW) draws++;
   }
   printf("%.3f\n", (float)(wins)/TOTAL);
   printf("%.3f\n", (float)(draws)/TOTAL);
