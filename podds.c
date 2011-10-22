@@ -287,6 +287,7 @@ pthread_mutex_t tlock;
 void * simulator(void * v) {
   int * ohs = (int *)malloc(2*(np-1)*sizeof(int));
   int cs[7], cs0, cs1, result, result1, i, j;
+  int mywins = 0, mydraws = 0;
   deck * d = newdeck();
   for (i=0; i<kc; i++) pick(d, as[i]);
   for (i=2; i<kc; i++) cs[i] = bitcard(as[i]);
@@ -308,11 +309,13 @@ void * simulator(void * v) {
       if (result1 < result) result = result1;
       if (result == LOSS) break;
     }
-    pthread_mutex_lock(&tlock);
-    if (result == WIN) wins++;
-    else if (result == DRAW) draws++;
-    pthread_mutex_unlock(&tlock);
+    if (result == WIN) mywins++;
+    else if (result == DRAW) mydraws++;
   }
+  pthread_mutex_lock(&tlock);
+  wins += mywins;
+  draws += mydraws;
+  pthread_mutex_unlock(&tlock);
   free(ohs);
   free(d);
   return NULL;
