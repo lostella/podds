@@ -39,8 +39,9 @@
   useful for embedding it in much more usable programs.
     
   *** MAIN PROGRAM
-  the main program starts by removing the known cards from the deck; afterwards
-  it plays a certain amount of random games during which:
+  the main program allocates a number of threads equal to the number of cores. each one of them
+  starts by removing the known cards from the deck; afterwards it plays a certain amount of random
+  games during which:
   - cards for every other player are drawn;
   - remaining cards on the table are drawn;
   - checks whether or not the player has won the game.
@@ -67,9 +68,10 @@
 #include <time.h>
 #include <math.h>
 #include <stdio.h>
+#include <unistd.h>
 
 /* total number of games for the simulation */
-#define TOTAL         1000000
+#define MAXGAMES      1000000
 
 /* bitmasks and shifts to manipulate cards properly */
 #define SUITSHIFT     18
@@ -272,24 +274,31 @@ int comp7(int cs[], int s) {
   return result;
 }
 
-int main(int argc, char ** argv) {
-  int cs[7], as[7], i, j, np = atoi(argv[1]), cs0, cs1;
+/*~~ Global (shared) data ~~~~~~~~~~~~~*/
+int wins = 0, draws = 0;
+int np, kc, as[7];
+
+/*~~ Threading ~~~~~~~~~~~~~~~~~~~~*/
+#include <pthread.h>
+int NUMTHREADS, NUMGAMES, GAMESPERTHREAD;
+pthread_t * tpool;
+pthread_mutex_t tlock;
+
+void * simulator(void * v) {
   int * ohs = (int *)malloc(2*(np-1)*sizeof(int));
-  int wins = 0, draws = 0, result, result1;
-  for (i=0; i<argc-2; i++) as[i] = atoi(argv[i+2]);
-  for (i=2; i<argc-2; i++) cs[i] = bitcard(as[i]);
-  srand(time(NULL));
+  int cs[7], cs0, cs1, result, result1, i, j;
   deck * d = newdeck();
+  for (i=0; i<kc; i++) pick(d, as[i]);
+  for (i=2; i<kc; i++) cs[i] = bitcard(as[i]);
   cs0 = bitcard(as[0]);
   cs1 = bitcard(as[1]);
-  for (i=0; i<argc-2; i++) pick(d, as[i]);
-  for (i=0; i<TOTAL; i++) {
+  for (i=0; i<GAMESPERTHREAD; i++) {
     int score;
-    initdeck(d, 52-argc+2);
+    initdeck(d, 52-kc);
     cs[0] = cs0;
     cs[1] = cs1;
     for (j=0; j<2*(np-1); j++) ohs[j] = bitcard(draw(d));
-    for (j=argc-2; j<7; j++) cs[j] = bitcard(draw(d));
+    for (j=kc; j<7; j++) cs[j] = bitcard(draw(d));
     score = eval7(cs);
     result = WIN;
     for (j=0; j<np-1; j++) {
@@ -299,12 +308,45 @@ int main(int argc, char ** argv) {
       if (result1 < result) result = result1;
       if (result == LOSS) break;
     }
+    pthread_mutex_lock(&tlock);
     if (result == WIN) wins++;
     else if (result == DRAW) draws++;
+    pthread_mutex_unlock(&tlock);
   }
-  printf("%.3f\n", (float)(wins)/TOTAL);
-  printf("%.3f\n", (float)(draws)/TOTAL);
   free(ohs);
   free(d);
+  return NULL;
+}
+
+/*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*/
+int main(int argc, char ** argv) {
+  int i, cs0, cs1;
+  NUMTHREADS = sysconf(_SC_NPROCESSORS_ONLN);
+  GAMESPERTHREAD = MAXGAMES/NUMTHREADS;
+  NUMGAMES = GAMESPERTHREAD*NUMTHREADS;
+  printf("cores:%d\n", NUMTHREADS);
+  printf("games:%d\n", NUMGAMES);
+  // read the arguments and create the known cards
+  np = atoi(argv[1]);
+  kc = argc-2;
+  for (i=0; i<kc; i++) as[i] = atoi(argv[i+2]);
+  // initialize the rng seed and the mutex
+  srand(time(NULL));
+  pthread_mutex_init(&tlock, NULL);
+  pthread_mutex_unlock(&tlock);
+  // run the simulation threads
+  tpool = (pthread_t *)malloc(NUMTHREADS*sizeof(pthread_t));
+  for (i=0; i<NUMTHREADS; i++) {
+    pthread_create(&tpool[i], NULL, simulator, NULL);
+  }
+  // wait for the threads to finish
+  for (i=0; i<NUMTHREADS; i++) {
+    pthread_join(tpool[i], NULL);
+  }
+  // show the results
+  printf("wins:%.3f\n", (float)(wins)/NUMGAMES);
+  printf("draws:%.3f\n", (float)(draws)/NUMGAMES);
+  // clear all
+  pthread_mutex_destroy(&tlock);
   return 0;
 }
