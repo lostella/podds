@@ -250,17 +250,17 @@ long long eval5(int cs[]) {
             (long long)s[0] << HC_SHIFT;
   }
   if (s[4] > -1) {
-  	return ((long long)s[4]+1) << FOAK_SHIFT | s[0];
+  	return ((long long)s[4]+1) << FOAK_SHIFT | s[0] << HC_SHIFT;
   }
   if (s[3] > -1) {
   	if (s[2] > -1)
   	  return (((long long)s[3]+1) << TOAK_SHIFT) | (((long long)s[2]+1) << PAIR2_SHIFT) | (long long)1 << FULL_SHIFT;
-  	return ((long long)s[3]+1) << TOAK_SHIFT | s[0];
+  	return ((long long)s[3]+1) << TOAK_SHIFT | s[0] << HC_SHIFT;
   }
   if (s[2] > -1) {
     if (s[1] > -1)
-      return (((long long)s[2]+1) << PAIR2_SHIFT) | (((long long)s[1]+1) << PAIR1_SHIFT) | s[0];
-    return ((long long)s[2]+1) << PAIR1_SHIFT | s[0];
+      return (((long long)s[2]+1) << PAIR2_SHIFT) | (((long long)s[1]+1) << PAIR1_SHIFT) | s[0] << HC_SHIFT;
+    return ((long long)s[2]+1) << PAIR1_SHIFT | s[0] << HC_SHIFT;
   }
   return (long long)s[0] << HC_SHIFT;
 }
@@ -334,16 +334,7 @@ void * simulator(void * v) {
       if (result == LOSS) break;
     }
     if (result == WIN) mywins++;
-    else if (result == DRAW) {/*
-      printf("%d(%d) ", rank(as[0]), suit(as[0]));
-      printf("%d(%d) ", rank(as[1]), suit(as[1]));
-      printf("%d(%d) ", rank(as[2]), suit(as[2]));
-      printf("%d(%d) ", rank(as[3]), suit(as[3]));
-      printf("%d(%d) ", rank(as[4]), suit(as[4]));
-      printf("%d(%d) ", rank(as[5]), suit(as[5]));
-      printf("%d(%d)\n", rank(as[6]), suit(as[6]));*/
-      mydraws++;
-    }
+    else if (result == DRAW) mydraws++;
   }
   pthread_mutex_lock(&tlock);
   wins += mywins;
@@ -354,7 +345,7 @@ void * simulator(void * v) {
   return NULL;
 }
 
-/*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*//*
+/*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*/
 int main(int argc, char ** argv) {
   int i, cs0, cs1;
   if (argc < 4) {
@@ -362,7 +353,7 @@ int main(int argc, char ** argv) {
   	fprintf(stderr, "required: <#players> <card1> <card2>\n");
   	return 1;
   }
-  NUMTHREADS = 1;//sysconf(_SC_NPROCESSORS_ONLN);
+  NUMTHREADS = sysconf(_SC_NPROCESSORS_ONLN);
   GAMESPERTHREAD = MAXGAMES/NUMTHREADS;
   NUMGAMES = GAMESPERTHREAD*NUMTHREADS;
   printf("cores:%d\n", NUMTHREADS);
@@ -440,7 +431,7 @@ int main(int argc, char ** argv) {
   return 0;
 }
 
-/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*/
+/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*//*
 int main(int argc, char ** argv) {
   int i, j, c[9], h1[7], h2[7];
   long long s1, s2;
