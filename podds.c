@@ -77,15 +77,14 @@
 #define MAXGAMES        1000000
 
 /* shifts to build up scores properly */
-#define SFLUSH_SHIFT    48
-#define FOAK_SHIFT      44
-#define FULL3_SHIFT     40
-#define FULL2_SHIFT     36
-#define FLUSH_SHIFT     20
-#define STRAIGHT_SHIFT  16
-#define TOAK_SHIFT      12
-#define PAIR2_SHIFT     8
-#define PAIR1_SHIFT     4
+#define SFLUSH_SHIFT    57
+#define FOAK_SHIFT      43
+#define FULL_SHIFT      42
+#define FLUSH_SHIFT     36
+#define STRAIGHT_SHIFT  32
+#define TOAK_SHIFT      28
+#define PAIR2_SHIFT     24
+#define PAIR1_SHIFT     20
 #define HC_SHIFT        0
 
 /* some constants */
@@ -208,7 +207,7 @@ void sort(int cs[]) {
 int hand(long long s) {
   if (s >= ((long long)1)<<SFLUSH_SHIFT) return STRFLUSH;
   if (s >= ((long long)1)<<FOAK_SHIFT) return FOAK;
-  if (s >= ((long long)1)<<FULL2_SHIFT) return FULLHOUSE;
+  if (s >= ((long long)1)<<FULL_SHIFT) return FULLHOUSE;
   if (s >= ((long long)1)<<FLUSH_SHIFT) return FLUSH;
   if (s >= ((long long)1)<<STRAIGHT_SHIFT) return STRAIGHT;
   if (s >= ((long long)1)<<TOAK_SHIFT) return TOAK;
@@ -223,30 +222,26 @@ int hand(long long s) {
 long long eval5(int cs[]) {
   int s[] = {-1,-1,-1,-1,-1}, i;
   int count = 1, straight = 1, flush = 1;
-  s[0] = rank(cs[0]);
+  int s0 = suit(cs[0]);
+  s[0] = rank(cs[0])<<16;
   for (i=1; i<5; i++) {
-    if (straight && rank(cs[i-1])-rank(cs[i]) != 1 && !(i == 1 && rank(cs[0]) == 12 && rank(cs[1]) == 3))
+    s[0] |= rank(cs[i])<<(4-i)*4;
+  	if (straight && rank(cs[i-1])-rank(cs[i]) != 1 && !(i == 1 && s[0] == 12 && rank(cs[1]) == 3))
       straight = 0;
-    if (flush == 1 && suit(cs[i-1]) != suit(cs[i]))
+  	if (flush == 1 && suit(cs[i]) != s0)
       flush = 0;
     if (rank(cs[i]) == rank(cs[i-1]))
       count++;
     if (i == 4 || rank(cs[i]) != rank(cs[i-1])) {
-      if (count == 2 && s[2] != -1)
-        s[1] = rank(cs[i-1]);
-      else if (count == 2)
-        s[2] = rank(cs[i-1]);
-      else if (count > 2)
-        s[count] = rank(cs[i-1]);
+      if (count == 2 && s[2] > -1) s[1] = rank(cs[i-1]);
+      else if (count == 2) s[2] = rank(cs[i-1]);
+      else if (count > 2) s[count] = rank(cs[i-1]);
       count = 1;
     }
   }
   if (straight) {
-    if (rank(cs[0]) == 12 && rank(cs[1]) == 5)
-      s[0] = rank(cs[1]);
-    if (flush) {
-      return (long long)s[0] << SFLUSH_SHIFT;
-    }
+    if (s[0] == 12 && rank(cs[1]) == 3) s[0] = 3;
+    if (flush) return (long long)s[0] << SFLUSH_SHIFT;
     return (long long)s[0] << STRAIGHT_SHIFT;
   }
   if (flush) {
@@ -257,19 +252,17 @@ long long eval5(int cs[]) {
             (long long)1 << (FLUSH_SHIFT+rank(cs[4]));
   }
   if (s[4] > -1) {
-  	return ((long long)s[4]+1) << FOAK_SHIFT;
+  	return ((long long)s[4]+1) << FOAK_SHIFT | s[0];
   }
   if (s[3] > -1) {
-  	if (s[2] > -1) {
-  	  return ((long long)s[3] << FULL3_SHIFT) | ((long long)s[2] << FULL2_SHIFT);
-  	}
-  	return ((long long)s[3]+1) << TOAK_SHIFT;
+  	if (s[2] > -1)
+  	  return (((long long)s[3]+1) << TOAK_SHIFT) | (((long long)s[2]+1) << PAIR2_SHIFT) | (long long)1 << FULL_SHIFT;
+  	return ((long long)s[3]+1) << TOAK_SHIFT | s[0];
   }
   if (s[2] > -1) {
-    if (s[1] > -1) {
-      return ((long long)s[2] << PAIR2_SHIFT) | ((long long)s[1] << PAIR1_SHIFT);
-    }
-    return ((long long)s[2]+1) << PAIR1_SHIFT;
+    if (s[1] > -1)
+      return (((long long)s[2]+1) << PAIR2_SHIFT) | (((long long)s[1]+1) << PAIR1_SHIFT) | s[0];
+    return ((long long)s[2]+1) << PAIR1_SHIFT | s[0];
   }
   return (long long)s[0] << HC_SHIFT;
 }
@@ -285,8 +278,8 @@ long long eval7(int cs[]) {
     ds[3] = cs[combs[i][3]];
     ds[4] = cs[combs[i][4]];
     v = eval5(ds);
-    //printf("score=%Ld\n",v);
     if (v > max) max = v;
+    //printf(" ---> %Ld\n", v);
   }
   return max;
 }
@@ -343,7 +336,16 @@ void * simulator(void * v) {
       if (result == LOSS) break;
     }
     if (result == WIN) mywins++;
-    else if (result == DRAW) mydraws++;
+    else if (result == DRAW) {/*
+      printf("%d(%d) ", rank(as[0]), suit(as[0]));
+      printf("%d(%d) ", rank(as[1]), suit(as[1]));
+      printf("%d(%d) ", rank(as[2]), suit(as[2]));
+      printf("%d(%d) ", rank(as[3]), suit(as[3]));
+      printf("%d(%d) ", rank(as[4]), suit(as[4]));
+      printf("%d(%d) ", rank(as[5]), suit(as[5]));
+      printf("%d(%d)\n", rank(as[6]), suit(as[6]));*/
+      mydraws++;
+    }
   }
   pthread_mutex_lock(&tlock);
   wins += mywins;
@@ -354,41 +356,6 @@ void * simulator(void * v) {
   return NULL;
 }
 
-/*~~ Hand test ~~~~~~~~~~~~~~~~~~~~~~~~*//*
-
-int main(int argc, char ** argv) {
-  int cs1[] = {7,8,18,6,34,5,9};
-  long long s1;
-  sort(cs1);
-  printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
-  s1 = eval7(cs1);
-  printf("%d\n", hand(s1));
-  return 0;
-}
-
-/*~~ Eval test ~~~~~~~~~~~~~~~~~~~~~~~~*//*
-int main(int argc, char ** argv) {
-  int cs1[] = {0,13,26,38,48,49,29};
-  int cs2[] = {3,16,8,14,36,46,50};
-  long long s1, s2;
-  int res;
-  sort(cs1);
-  sort(cs2);
-  printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
-  s1 = eval7(cs1);
-  printf("score=%Ld\n",s1);
-  printf("player 2: %d %d %d %d %d %d %d\n", rank(cs2[0]), rank(cs2[1]), rank(cs2[2]), rank(cs2[3]), rank(cs2[4]), rank(cs2[5]), rank(cs2[6]));
-  s2 = eval7(cs2);
-  printf("score=%Ld\n",s2);
-  if (s1 < s2)
-    printf("player 2 wins\n");
-  if (s1 == s2)
-    printf("draw\n");
-  if (s1 > s2)
-    printf("player 1 wins\n");
-  //printf("score = %Ld\n", s);
-}
-
 /*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*/
 int main(int argc, char ** argv) {
   int i, cs0, cs1;
@@ -397,7 +364,7 @@ int main(int argc, char ** argv) {
   	fprintf(stderr, "required: <#players> <card1> <card2>\n");
   	return 1;
   }
-  NUMTHREADS = sysconf(_SC_NPROCESSORS_ONLN);
+  NUMTHREADS = 1;//sysconf(_SC_NPROCESSORS_ONLN);
   GAMESPERTHREAD = MAXGAMES/NUMTHREADS;
   NUMGAMES = GAMESPERTHREAD*NUMTHREADS;
   printf("cores:%d\n", NUMTHREADS);
@@ -420,11 +387,82 @@ int main(int argc, char ** argv) {
     pthread_join(tpool[i], NULL);
   }
   // show the results
-  printf("wins:%.3f\n", (float)(wins)/NUMGAMES);
-  printf("draws:%.3f\n", (float)(draws)/NUMGAMES);
+  printf("wins:%.3f\n", ((float)wins)/NUMGAMES);
+  printf("draws:%.3f\n", ((float)draws)/NUMGAMES);
   // clear all
   pthread_mutex_destroy(&tlock);
   return 0;
+}
+
+/*~~ Hand recognition test ~~~~~~~~~~~~*//*
+int main(int argc, char ** argv) {
+  int cs1[] = {13,41,14,51,34,8,29};
+  long long s1;
+  sort(cs1);
+  printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
+  s1 = eval7(cs1);
+  printf("%d\n", hand(s1));
+  return 0;
+}
+
+/*~~ Eval test ~~~~~~~~~~~~~~~~~~~~~~~~*//*
+int main(int argc, char ** argv) {
+  int cs1[] = {43,20,51,9,15,34,12};
+  int cs2[] = {39,49,51,9,15,34,12};
+  long long s1, s2;
+  int res;
+  sort(cs1);
+  sort(cs2);
+  printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
+  s1 = eval7(cs1);
+  printf("score=%Ld\n",s1);
+  printf("player 2: %d %d %d %d %d %d %d\n", rank(cs2[0]), rank(cs2[1]), rank(cs2[2]), rank(cs2[3]), rank(cs2[4]), rank(cs2[5]), rank(cs2[6]));
+  s2 = eval7(cs2);
+  printf("score=%Ld\n",s2);
+  if (s1 < s2)
+    printf("player 2 wins\n");
+  if (s1 == s2)
+    printf("draw\n");
+  if (s1 > s2)
+    printf("player 1 wins\n");
+  //printf("score = %Ld\n", s);
+}
+
+/*~~ Games generator ~~~~~~~~~~~~~~~~~~*//*
+int main(int argc, char ** argv) {
+  int ng = atoi(argv[1]); // number of pairs
+  int i, j;
+  deck * d = newdeck();
+  for (i=0; i<ng; i++) {
+    initdeck(d, 52);
+    for (j=0; j<9; j++)
+      printf("%d ", draw(d));
+    printf("\n");
+  }
+  return 0;
+}
+
+/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*//*
+int main(int argc, char ** argv) {
+  int i, j, c[9], h1[7], h2[7];
+  long long s1, s2;
+  while (scanf("%d %d %d %d %d %d %d %d %d ", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8]) == 9) {
+    h1[0] = c[0];
+    h1[1] = c[1];
+    h2[0] = c[2];
+    h2[1] = c[3];
+    for (i=2; i<7; i++) {
+      h1[i] = c[i+2];
+      h2[i] = c[i+2];
+    }
+    sort(h1);
+    sort(h2);
+    s1 = eval7(h1);
+    s2 = eval7(h2);
+    if (s1 > s2) printf("1 (%Ld, %Ld)\n", s1, s2);
+    else if (s1 < s2) printf("2 (%Ld, %Ld)\n", s1, s2);
+    else printf("0 (%Ld, %Ld)\n", s1, s2);
+  }
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
