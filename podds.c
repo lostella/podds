@@ -358,3 +358,24 @@ int main(int argc, char ** argv) {
   pthread_mutex_destroy(&tlock);
   return 0;
 }
+
+/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*//*
+int main(int argc, char ** argv) {
+  int i, j, c[9], h1[7], h2[7], s1, s2;
+  while (scanf("%d %d %d %d %d %d %d %d %d ", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8]) == 9) {
+    h1[0] = bitcard(c[0]);
+    h1[1] = bitcard(c[1]);
+    h2[0] = bitcard(c[2]);
+    h2[1] = bitcard(c[3]);
+    for (i=2; i<9; i++) {
+      h1[i] = h2[i] = bitcard(c[i]);
+    }
+    s1 = eval7(h1);
+    s2 = eval7(h2);
+    if (s1 > s2) printf("1\n");
+    else if (s1 < s2) printf("2\n");
+    else printf("0\n");
+  }
+}
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
