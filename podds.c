@@ -321,7 +321,7 @@ void * simulator(void * v) {
   return NULL;
 }
 
-/*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*//*
+/*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*/
 int main(int argc, char ** argv) {
   int i, cs0, cs1;
   if (argc < 4) {
@@ -359,7 +359,7 @@ int main(int argc, char ** argv) {
   return 0;
 }
 
-/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*/
+/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*//*
 int main(int argc, char ** argv) {
   int i, j, c[9], h1[7], h2[7], s1, s2;
   while (scanf("%d %d %d %d %d %d %d %d %d ", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8]) == 9) {
