@@ -77,9 +77,9 @@
 #define MAXGAMES        1000000
 
 /* shifts to build up scores properly */
-#define SFLUSH_SHIFT    57
-#define FOAK_SHIFT      43
-#define FULL_SHIFT      42
+#define SFLUSH_SHIFT    42
+#define FOAK_SHIFT      38
+#define FULL_SHIFT      37
 #define FLUSH_SHIFT     36
 #define STRAIGHT_SHIFT  32
 #define TOAK_SHIFT      28
@@ -222,12 +222,13 @@ int hand(long long s) {
 long long eval5(int cs[]) {
   int s[] = {-1,-1,-1,-1,-1}, i;
   int count = 1, straight = 1, flush = 1;
-  int s0 = suit(cs[0]);
-  s[0] = rank(cs[0])<<16;
+  int s0 = suit(cs[0]), r0 = rank(cs[0]);
+  s[0] = r0<<16;
   for (i=1; i<5; i++) {
     s[0] |= rank(cs[i])<<(4-i)*4;
-  	if (straight && rank(cs[i-1])-rank(cs[i]) != 1 && !(i == 1 && s[0] == 12 && rank(cs[1]) == 3))
+  	if (straight && rank(cs[i-1])-rank(cs[i]) != 1 && !(i == 1 && r0 == 12 && rank(cs[1]) == 3)) {
       straight = 0;
+    }
   	if (flush == 1 && suit(cs[i]) != s0)
       flush = 0;
     if (rank(cs[i]) == rank(cs[i-1]))
@@ -240,16 +241,13 @@ long long eval5(int cs[]) {
     }
   }
   if (straight) {
-    if (s[0] == 12 && rank(cs[1]) == 3) s[0] = 3;
-    if (flush) return (long long)s[0] << SFLUSH_SHIFT;
-    return (long long)s[0] << STRAIGHT_SHIFT;
+    if (r0 == 12 && rank(cs[1]) == 3) r0 = 3;
+    if (flush) return (long long)r0 << SFLUSH_SHIFT;
+    return (long long)r0 << STRAIGHT_SHIFT;
   }
   if (flush) {
-    return  (long long)1 << (FLUSH_SHIFT+rank(cs[0])) |
-            (long long)1 << (FLUSH_SHIFT+rank(cs[1])) |
-            (long long)1 << (FLUSH_SHIFT+rank(cs[2])) |
-            (long long)1 << (FLUSH_SHIFT+rank(cs[3])) |
-            (long long)1 << (FLUSH_SHIFT+rank(cs[4]));
+    return  (long long)1 << FLUSH_SHIFT |
+            (long long)s[0] << HC_SHIFT;
   }
   if (s[4] > -1) {
   	return ((long long)s[4]+1) << FOAK_SHIFT | s[0];
@@ -356,7 +354,7 @@ void * simulator(void * v) {
   return NULL;
 }
 
-/*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*/
+/*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*//*
 int main(int argc, char ** argv) {
   int i, cs0, cs1;
   if (argc < 4) {
@@ -396,7 +394,7 @@ int main(int argc, char ** argv) {
 
 /*~~ Hand recognition test ~~~~~~~~~~~~*//*
 int main(int argc, char ** argv) {
-  int cs1[] = {13,41,14,51,34,8,29};
+  int cs1[] = {14, 2, 21, 20, 35, 18, 19};
   long long s1;
   sort(cs1);
   printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
@@ -407,8 +405,8 @@ int main(int argc, char ** argv) {
 
 /*~~ Eval test ~~~~~~~~~~~~~~~~~~~~~~~~*//*
 int main(int argc, char ** argv) {
-  int cs1[] = {43,20,51,9,15,34,12};
-  int cs2[] = {39,49,51,9,15,34,12};
+  int cs1[] = {14, 2, 21, 20, 35, 18, 19};
+  int cs2[] = {44, 1, 21, 20, 35, 18, 19};
   long long s1, s2;
   int res;
   sort(cs1);
@@ -442,7 +440,7 @@ int main(int argc, char ** argv) {
   return 0;
 }
 
-/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*//*
+/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*/
 int main(int argc, char ** argv) {
   int i, j, c[9], h1[7], h2[7];
   long long s1, s2;
@@ -459,9 +457,9 @@ int main(int argc, char ** argv) {
     sort(h2);
     s1 = eval7(h1);
     s2 = eval7(h2);
-    if (s1 > s2) printf("1 (%Ld, %Ld)\n", s1, s2);
-    else if (s1 < s2) printf("2 (%Ld, %Ld)\n", s1, s2);
-    else printf("0 (%Ld, %Ld)\n", s1, s2);
+    if (s1 > s2) printf("1\n");
+    else if (s1 < s2) printf("2\n");
+    else printf("0\n");
   }
 }
 
