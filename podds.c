@@ -311,23 +311,26 @@ pthread_mutex_t tlock;
 
 void * simulator(void * v) {
   int * ohs = (int *)malloc(2*(np-1)*sizeof(int));
-  int cs[7], cs0, cs1, result, result1, i, j, k;
+  int cs[7], myas[7], cs0, cs1, result, result1, i, j, k;
   int mywins = 0, mydraws = 0;
   deck * d = newdeck();
-  for (i=0; i<kc; i++) pick(d, as[i]);
+  for (i=0; i<kc; i++) {
+  	pick(d, as[i]);
+  	myas[i] = as[i];
+  }
   for (i=0; i<GAMESPERTHREAD; i++) {
     long long score;
     initdeck(d, 52-kc);
     for (j=0; j<2*(np-1); j++) ohs[j] = draw(d);
-    for (j=kc; j<7; j++) as[j] = draw(d);
-    for (j=0; j<7; j++) cs[j] = as[j];
+    for (j=kc; j<7; j++) myas[j] = draw(d);
+    for (j=0; j<7; j++) cs[j] = myas[j];
     sort(cs);
     score = eval7(cs);
     result = WIN;
     for (j=0; j<np-1; j++) {
       cs[0] = ohs[2*j];
       cs[1] = ohs[2*j+1];
-      for (k=2; k<7; k++) cs[k] = as[k];
+      for (k=2; k<7; k++) cs[k] = myas[k];
       sort(cs);
       result1 = comp7(cs, score);
       if (result1 < result) result = result1;
