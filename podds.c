@@ -31,9 +31,9 @@
   bigger numbers corresponds to higher cards, so for instance cards 0, 13, 26, 29
   are the "twos", while 12, 25, 38, 51 are the "aces".
   the rank of a card k is obviously given by k%13;
-  its suit is obviously given by k/13 (euclidean division).
-  the probabilities of winning and drawing are printed (three significant digits) to standard output
-  with a newline character '\n' inbetween.
+  its suit is obviously given by k/13 (euclidean division, with remainder).
+  the probabilities of winning and drawing are printed (three significant digits) to standard output,
+  along with some other infos, all separated by a newline character '\n'.
   
   the lack of usability of this tool and its nice performances makes it particularly
   useful for embedding it in much more usable programs.
@@ -59,8 +59,11 @@
   need to look for three-of-a-kind when we've already found a full-house or a straight or
   whatever.
   
-  *** BITCARD
-  [i'm working on it]
+  *** COMP7
+  once the first player's hand has been evaluated, there's no need to *exactly* calculate
+  the score for every other player. instead we just need to compare every combination of
+  5 cards taken from 7 with the score of the first player, until we find one that beats it,
+  ignoring any other combination (or even other players).
 
 *************************************************************************/
 
@@ -71,19 +74,32 @@
 #include <unistd.h>
 
 /* total number of games for the simulation */
-#define MAXGAMES      1000000
+#define MAXGAMES        1000000
 
-/* bitmasks and shifts to manipulate cards properly */
-#define SUITSHIFT     18
-#define SUITMASK      0x003C0000 // 3932160
-#define BITRANKMASK   0x0003FFF0 // 262128
-#define RANKMASK      0x0000000F // 15
-#define STRAIGHTMASK  0x000001F0 // 496
+/* shifts to build up scores properly */
+#define SFLUSH_SHIFT    42
+#define FOAK_SHIFT      38
+#define FULL_SHIFT      37
+#define FLUSH_SHIFT     36
+#define STRAIGHT_SHIFT  32
+#define TOAK_SHIFT      28
+#define PAIR2_SHIFT     24
+#define PAIR1_SHIFT     20
+#define HC_SHIFT        0
 
 /* some constants */
-#define LOSS          0
-#define DRAW          1
-#define WIN           2
+#define LOSS            0
+#define DRAW            1
+#define WIN             2
+#define HC              3
+#define PAIR            4
+#define TWOPAIRS        5
+#define TOAK            6
+#define STRAIGHT        7
+#define FLUSH           8
+#define FULLHOUSE       9
+#define FOAK            10
+#define STRFLUSH        11
 
 typedef struct {
   int c[52];
@@ -127,12 +143,6 @@ int rank(int i) {
   return i%13;
 }
 
-/* convert a card from integer-form to bitmap-form */
-int bitcard(int i) {
-  int r = rank(i);
-  return (1<<(SUITSHIFT+suit(i))) | (1<<(r+5)) | (r == 12 ? 1<<4 : 0) | r;
-}
-
 /* allocates a new deck */
 deck * newdeck() {
   int i;
@@ -174,99 +184,114 @@ void pick(deck * d, int c) {
   }
 }
 
-/* check for a flush (cs[] must have length >= 5) */
-int flush(int cs[]) {
-  int i;
-  for (i=1; i<5; i++) if ((cs[i-1] & SUITMASK) != (cs[i] & SUITMASK)) return 0;
-  return 1;
+/* sort the given 7 cards by rank (decreasing order) */
+void sort(int cs[]) {
+  int i, j, imax, rmax, temp;
+  for (i=0; i<6; i++) {
+    rmax = rank(cs[i]); imax = i;
+    for (j=i+1; j<7; j++) {
+      if (rank(cs[j]) > rmax) {
+        rmax = rank(cs[j]);
+        imax = j;
+      }
+    }
+    if (imax > i) {
+      temp = cs[imax];
+      cs[imax] = cs[i];
+      cs[i] = temp;
+    }
+  }
 }
 
-/* check for a straight (cs[] must have length >= 5) */
-int straight(int cs[]) {
-  int i, disj = cs[0];
-  for (i=1; i<5; i++) disj |= cs[i];
-  for (i=0; i<10; i++) if ((disj & (STRAIGHTMASK<<i))>>i == STRAIGHTMASK) break;
-  if (i > 9) return 0;
-  else return i+1;
+/* returns the type of hand given a score (may be useful for debugging purposes) */
+int hand(long long s) {
+  if (s >= ((long long)1)<<SFLUSH_SHIFT) return STRFLUSH;
+  if (s >= ((long long)1)<<FOAK_SHIFT) return FOAK;
+  if (s >= ((long long)1)<<FULL_SHIFT) return FULLHOUSE;
+  if (s >= ((long long)1)<<FLUSH_SHIFT) return FLUSH;
+  if (s >= ((long long)1)<<STRAIGHT_SHIFT) return STRAIGHT;
+  if (s >= ((long long)1)<<TOAK_SHIFT) return TOAK;
+  if (s >= ((long long)1)<<PAIR2_SHIFT) return TWOPAIRS;
+  if (s >= ((long long)1)<<PAIR1_SHIFT) return PAIR;
+  return HC;
 }
 
-int eval5(int cs[]) {
-  int i, j, rv[] = {-1,-1,-1,-1,-1}, cv[] = {0,0,0,0,0};
-  int m, s = straight(cs), f = flush(cs), v = 0;
-  if (s) {
-    if (f) return (8<<24) | (s<<20);
-    else return (4<<24) | (s<<20);
-  } else if (f) v = 5<<24;
+/* calculates a score for the 5-card combo */
+/* TODO: PROVE CORRECT */
+/* TODO: OPTIMIZE */
+long long eval5(int cs[]) {
+  int s[] = {-1,-1,-1,-1,-1}, i;
+  int count = 1, straight = 1, flush = 1;
+  int s0 = suit(cs[0]), r0 = rank(cs[0]);
+  s[0] = r0<<16;
   for (i=1; i<5; i++) {
-    for (j=0; j<5-i; j++) {
-      if ((cs[j] & RANKMASK) < (cs[j+1] & RANKMASK)) {
-        m = cs[j];
-        cs[j] = cs[j+1];
-        cs[j+1] = m;
-      }
+    s[0] |= rank(cs[i])<<(4-i)*4;
+    if (straight && rank(cs[i-1])-rank(cs[i]) != 1 && !(i == 1 && r0 == 12 && rank(cs[1]) == 3)) {
+      straight = 0;
+    }
+    if (flush == 1 && suit(cs[i]) != s0)
+      flush = 0;
+    if (rank(cs[i]) == rank(cs[i-1]))
+      count++;
+    if (i == 4 || rank(cs[i]) != rank(cs[i-1])) {
+      if (count == 2 && s[2] > -1) s[1] = rank(cs[i-1]);
+      else if (count == 2) s[2] = rank(cs[i-1]);
+      else if (count > 2) s[count] = rank(cs[i-1]);
+      count = 1;
     }
   }
-  for (i=0; i<5; i++) {
-    for (j=0; j<5; j++) {
-      if (rv[j] == (cs[i] & RANKMASK)) {
-        cv[j]++;
-        break;
-      }
-      if (rv[j] == -1) {
-        rv[j] = cs[i] & RANKMASK;
-        cv[j]++;
-        break;
-      }
-    }
+  if (straight) {
+    if (r0 == 12 && rank(cs[1]) == 3) r0 = 3;
+    if (flush) return (long long)r0 << SFLUSH_SHIFT;
+    return (long long)r0 << STRAIGHT_SHIFT;
   }
-  for (i=1; i<5; i++) {
-    for (j=0; j<5-i; j++) {
-      if (cv[j] < cv[j+1]) {
-        m = cv[j];
-        cv[j] = cv[j+1];
-        cv[j+1] = m;
-        m = rv[j];
-        rv[j] = rv[j+1];
-        rv[j+1] = m;
-      }
-    }
+  if (flush) {
+    return  (long long)1 << FLUSH_SHIFT |
+            (long long)s[0] << HC_SHIFT;
   }
-  if (cv[0] == 2 && cv[1] == 1) v = 1<<24;
-  else if (cv[0] == 2 && cv[1] == 2) v = 2<<24;
-  else if (cv[0] == 3 && cv[1] == 1) v = 3<<24;
-  else if (cv[0] == 3 && cv[1] == 2) v = 6<<24;
-  else if (cv[0] == 4) v = 7<<24;
-  for (i=0; i<5; i++) {
-    if (cv[i] == 0) break;
-    v |= rv[i] << 4*(4-i);
+  if (s[4] > -1) {
+    return ((long long)s[4]+1) << FOAK_SHIFT | s[0] << HC_SHIFT;
   }
-  return v;
+  if (s[3] > -1) {
+    if (s[2] > -1)
+      return (((long long)s[3]+1) << TOAK_SHIFT) | (((long long)s[2]+1) << PAIR2_SHIFT) | (long long)1 << FULL_SHIFT;
+    return ((long long)s[3]+1) << TOAK_SHIFT | s[0] << HC_SHIFT;
+  }
+  if (s[2] > -1) {
+    if (s[1] > -1)
+      return (((long long)s[2]+1) << PAIR2_SHIFT) | (((long long)s[1]+1) << PAIR1_SHIFT) | s[0] << HC_SHIFT;
+    return ((long long)s[2]+1) << PAIR1_SHIFT | s[0] << HC_SHIFT;
+  }
+  return (long long)s[0] << HC_SHIFT;
 }
 
 /* find the most valuable five-cards combination out of the seven given cards and return its score */
-int eval7(int cs[]) {
-  int i, ds[5], max = -1, v;
+long long eval7(int cs[]) {
+  int i, ds[5];
+  long long max = -1, v;
   for (i = 0; i<21; i++) {
-    ds[0] = cs[combs[i][0]]; //
-    ds[1] = cs[combs[i][1]]; //
-    ds[2] = cs[combs[i][2]]; // TODO: optimize
-    ds[3] = cs[combs[i][3]]; //
-    ds[4] = cs[combs[i][4]]; //
+    ds[0] = cs[combs[i][0]];
+    ds[1] = cs[combs[i][1]];
+    ds[2] = cs[combs[i][2]];
+    ds[3] = cs[combs[i][3]];
+    ds[4] = cs[combs[i][4]];
     v = eval5(ds);
     if (v > max) max = v;
+    //printf(" ---> %Ld\n", v);
   }
   return max;
 }
 
 /* check if there's a five-cards combination among cards cs[] with score higher than s */
-int comp7(int cs[], int s) {
-  int i, ds[5], v, result = WIN;
+int comp7(int cs[], long long s) {
+  int i, ds[5], result = WIN;
+  long long v;
   for (i = 0; i<21; i++) {
-    ds[0] = cs[combs[i][0]]; //
-    ds[1] = cs[combs[i][1]]; //
-    ds[2] = cs[combs[i][2]]; // TODO: optimize
-    ds[3] = cs[combs[i][3]]; //
-    ds[4] = cs[combs[i][4]]; //
+    ds[0] = cs[combs[i][0]];
+    ds[1] = cs[combs[i][1]];
+    ds[2] = cs[combs[i][2]];
+    ds[3] = cs[combs[i][3]];
+    ds[4] = cs[combs[i][4]];
     v = eval5(ds);
     if (v > s) return LOSS;
     if (v == s) result = DRAW;
@@ -278,7 +303,7 @@ int comp7(int cs[], int s) {
 int wins = 0, draws = 0;
 int np, kc, as[7];
 
-/*~~ Threading ~~~~~~~~~~~~~~~~~~~~*/
+/*~~ Threading ~~~~~~~~~~~~~~~~~~~~~~~~*/
 #include <pthread.h>
 int NUMTHREADS, NUMGAMES, GAMESPERTHREAD;
 pthread_t * tpool;
@@ -286,25 +311,27 @@ pthread_mutex_t tlock;
 
 void * simulator(void * v) {
   int * ohs = (int *)malloc(2*(np-1)*sizeof(int));
-  int cs[7], cs0, cs1, result, result1, i, j;
+  int cs[7], myas[7], cs0, cs1, result, result1, i, j, k;
   int mywins = 0, mydraws = 0;
   deck * d = newdeck();
-  for (i=0; i<kc; i++) pick(d, as[i]);
-  for (i=2; i<kc; i++) cs[i] = bitcard(as[i]);
-  cs0 = bitcard(as[0]);
-  cs1 = bitcard(as[1]);
+  for (i=0; i<kc; i++) {
+    pick(d, as[i]);
+    myas[i] = as[i];
+  }
   for (i=0; i<GAMESPERTHREAD; i++) {
-    int score;
+    long long score;
     initdeck(d, 52-kc);
-    cs[0] = cs0;
-    cs[1] = cs1;
-    for (j=0; j<2*(np-1); j++) ohs[j] = bitcard(draw(d));
-    for (j=kc; j<7; j++) cs[j] = bitcard(draw(d));
+    for (j=0; j<2*(np-1); j++) ohs[j] = draw(d);
+    for (j=kc; j<7; j++) myas[j] = draw(d);
+    for (j=0; j<7; j++) cs[j] = myas[j];
+    sort(cs);
     score = eval7(cs);
     result = WIN;
     for (j=0; j<np-1; j++) {
       cs[0] = ohs[2*j];
       cs[1] = ohs[2*j+1];
+      for (k=2; k<7; k++) cs[k] = myas[k];
+      sort(cs);
       result1 = comp7(cs, score);
       if (result1 < result) result = result1;
       if (result == LOSS) break;
@@ -352,25 +379,76 @@ int main(int argc, char ** argv) {
     pthread_join(tpool[i], NULL);
   }
   // show the results
-  printf("wins:%.3f\n", (float)(wins)/NUMGAMES);
-  printf("draws:%.3f\n", (float)(draws)/NUMGAMES);
+  printf("wins:%.3f\n", ((float)wins)/NUMGAMES);
+  printf("draws:%.3f\n", ((float)draws)/NUMGAMES);
   // clear all
   pthread_mutex_destroy(&tlock);
   return 0;
 }
 
+/*~~ Hand recognition test ~~~~~~~~~~~~*//*
+int main(int argc, char ** argv) {
+  int cs1[] = {14, 2, 21, 20, 35, 18, 19};
+  long long s1;
+  sort(cs1);
+  printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
+  s1 = eval7(cs1);
+  printf("%d\n", hand(s1));
+  return 0;
+}
+
+/*~~ Eval test ~~~~~~~~~~~~~~~~~~~~~~~~*//*
+int main(int argc, char ** argv) {
+  int cs1[] = {14, 2, 21, 20, 35, 18, 19};
+  int cs2[] = {44, 1, 21, 20, 35, 18, 19};
+  long long s1, s2;
+  int res;
+  sort(cs1);
+  sort(cs2);
+  printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
+  s1 = eval7(cs1);
+  printf("score=%Ld\n",s1);
+  printf("player 2: %d %d %d %d %d %d %d\n", rank(cs2[0]), rank(cs2[1]), rank(cs2[2]), rank(cs2[3]), rank(cs2[4]), rank(cs2[5]), rank(cs2[6]));
+  s2 = eval7(cs2);
+  printf("score=%Ld\n",s2);
+  if (s1 < s2)
+    printf("player 2 wins\n");
+  if (s1 == s2)
+    printf("draw\n");
+  if (s1 > s2)
+    printf("player 1 wins\n");
+  //printf("score = %Ld\n", s);
+}
+
+/*~~ Games generator ~~~~~~~~~~~~~~~~~~*//*
+int main(int argc, char ** argv) {
+  int ng = atoi(argv[1]); // number of pairs
+  int i, j;
+  deck * d = newdeck();
+  for (i=0; i<ng; i++) {
+    initdeck(d, 52);
+    for (j=0; j<9; j++)
+      printf("%d ", draw(d));
+    printf("\n");
+  }
+  return 0;
+}
+
 /*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*//*
 int main(int argc, char ** argv) {
-  int i, j, c[9], h1[7], h2[7], s1, s2;
+  int i, j, c[9], h1[7], h2[7];
+  long long s1, s2;
   while (scanf("%d %d %d %d %d %d %d %d %d ", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8]) == 9) {
-    h1[0] = bitcard(c[0]);
-    h1[1] = bitcard(c[1]);
-    h2[0] = bitcard(c[2]);
-    h2[1] = bitcard(c[3]);
+    h1[0] = c[0];
+    h1[1] = c[1];
+    h2[0] = c[2];
+    h2[1] = c[3];
     for (i=2; i<7; i++) {
-      h1[i] = bitcard(c[i+2]);
-      h2[i] = bitcard(c[i+2]);
+      h1[i] = c[i+2];
+      h2[i] = c[i+2];
     }
+    sort(h1);
+    sort(h2);
     s1 = eval7(h1);
     s2 = eval7(h2);
     if (s1 > s2) printf("1\n");
