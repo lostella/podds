@@ -325,9 +325,9 @@ void * simulator(void * v) {
 int main(int argc, char ** argv) {
   int i, cs0, cs1;
   if (argc < 4) {
-  	fprintf(stderr, "incorrect number of arguments\n");
-  	fprintf(stderr, "required: <#players> <card1> <card2>\n");
-  	return 1;
+    fprintf(stderr, "incorrect number of arguments\n");
+    fprintf(stderr, "required: <#players> <card1> <card2>\n");
+    return 1;
   }
   NUMTHREADS = sysconf(_SC_NPROCESSORS_ONLN);
   GAMESPERTHREAD = MAXGAMES/NUMTHREADS;
@@ -378,5 +378,4 @@ int main(int argc, char ** argv) {
     else printf("0\n");
   }
 }
-
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
