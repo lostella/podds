@@ -74,7 +74,7 @@
 #include <unistd.h>
 
 /* total number of games for the simulation */
-#define MAXGAMES        1000000
+#define MAXGAMES        500000
 
 /* shifts to build up scores properly */
 #define SFLUSH_SHIFT    42
@@ -224,6 +224,7 @@ long long eval5(int cs[]) {
   int count = 1, straight = 1, flush = 1;
   int s0 = suit(cs[0]), r0 = rank(cs[0]);
   s[0] = r0<<16;
+  // set flags for straight, flush, n-of-a-kind
   for (i=1; i<5; i++) {
     s[0] |= rank(cs[i])<<(4-i)*4;
     if (straight && rank(cs[i-1])-rank(cs[i]) != 1 && !(i == 1 && r0 == 12 && rank(cs[1]) == 3)) {
@@ -240,26 +241,33 @@ long long eval5(int cs[]) {
       count = 1;
     }
   }
+  // straight flush then straight
   if (straight) {
     if (r0 == 12 && rank(cs[1]) == 3) r0 = 3;
     if (flush) return (long long)r0 << SFLUSH_SHIFT;
     return (long long)r0 << STRAIGHT_SHIFT;
   }
+  // flush
   if (flush) {
     return  (long long)1 << FLUSH_SHIFT |
             (long long)s[0] << HC_SHIFT;
   }
+  // builds bitmask for n-of-a-kind and fullhouse
   if (s[4] > -1) {
     return ((long long)s[4]+1) << FOAK_SHIFT | s[0] << HC_SHIFT;
   }
   if (s[3] > -1) {
+    // fullhouse
     if (s[2] > -1)
       return (((long long)s[3]+1) << TOAK_SHIFT) | (((long long)s[2]+1) << PAIR2_SHIFT) | (long long)1 << FULL_SHIFT;
+    // three-of-a-kind
     return ((long long)s[3]+1) << TOAK_SHIFT | s[0] << HC_SHIFT;
   }
   if (s[2] > -1) {
+    // two pairs
     if (s[1] > -1)
       return (((long long)s[2]+1) << PAIR2_SHIFT) | (((long long)s[1]+1) << PAIR1_SHIFT) | s[0] << HC_SHIFT;
+    // two-of-a-kind
     return ((long long)s[2]+1) << PAIR1_SHIFT | s[0] << HC_SHIFT;
   }
   return (long long)s[0] << HC_SHIFT;
@@ -349,6 +357,7 @@ void * simulator(void * v) {
 }
 
 /*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*/
+#ifdef MAIN
 int main(int argc, char ** argv) {
   int i, cs0, cs1;
   if (argc < 4) {
@@ -385,10 +394,11 @@ int main(int argc, char ** argv) {
   pthread_mutex_destroy(&tlock);
   return 0;
 }
+#endif
 
 /*~~ Hand recognition test ~~~~~~~~~~~~*//*
 int main(int argc, char ** argv) {
-  int cs1[] = {14, 2, 21, 20, 35, 18, 19};
+  int cs1[] = {14, 2, 21, 7, 35, 18, 19};
   long long s1;
   sort(cs1);
   printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
@@ -420,7 +430,8 @@ int main(int argc, char ** argv) {
   //printf("score = %Ld\n", s);
 }
 
-/*~~ Games generator ~~~~~~~~~~~~~~~~~~*//*
+/*~~ Games generator ~~~~~~~~~~~~~~~~~~*/
+#ifdef GENERATOR
 int main(int argc, char ** argv) {
   int ng = atoi(argv[1]); // number of pairs
   int i, j;
@@ -433,8 +444,10 @@ int main(int argc, char ** argv) {
   }
   return 0;
 }
+#endif
 
-/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*//*
+/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*/
+#ifdef TEST
 int main(int argc, char ** argv) {
   int i, j, c[9], h1[7], h2[7];
   long long s1, s2;
@@ -456,4 +469,6 @@ int main(int argc, char ** argv) {
     else printf("0\n");
   }
 }
+#endif
+
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
