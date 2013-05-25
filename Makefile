@@ -1,11 +1,5 @@
 podds:	podds.c
-	gcc -DMAIN -O3 -pthread -o podds podds.c
-	
-generator:	podds.c
-	gcc -DGENERATOR -O3 -pthread -o podds podds.c
-
-test:	podds.c
-	gcc -DTEST -O3 -pthread -o podds podds.c
+	gcc -O3 -pthread -o podds podds.c poker.c
 
 clean:
 	rm podds
