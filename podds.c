@@ -1,71 +1,20 @@
-/**************************************************************************
+/*
+podds - Texas Hold 'Em Poker odds calculator
+Copyright (C) 2011-2013  Lorenzo Stella
+  
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-  podds - Texas Hold 'Em Poker odds calculator
-  Copyright (C) 2011  Lorenzo Stella
-  
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-  
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-**************************************************************************
-
-  *** USAGE
-  parameters: <number of players> <card 1> <card 2> [<card 3> ... <card 7>]
-  where the first two cards are the player's hand, while the others (optional)
-  are those on the table.
-  cards are natural numbers in the range [0, 51], grouped by suit. since in texas
-  hold 'em poker suits are no different from each other, one thus has:
-    suit 1: 0-12
-    suit 2: 13-25
-    suit 3: 26-38
-    suit 4: 29-51
-  bigger numbers corresponds to higher cards, so for instance cards 0, 13, 26, 29
-  are the "twos", while 12, 25, 38, 51 are the "aces".
-  the rank of a card k is obviously given by k%13;
-  its suit is obviously given by k/13 (euclidean division, with remainder).
-  the probabilities of winning and drawing are printed (three significant digits) to standard output,
-  along with some other infos, all separated by a newline character '\n'.
-  
-  the lack of usability of this tool and its nice performances makes it particularly
-  useful for embedding it in much more usable programs.
-    
-  *** MAIN PROGRAM
-  the main program allocates a number of threads equal to the number of cores. each one of them
-  starts by removing the known cards from the deck; afterwards it plays a certain amount of random
-  games during which:
-  - cards for every other player are drawn;
-  - remaining cards on the table are drawn;
-  - checks whether or not the player has won the game.
-  in order to accomplish this very last phase the cards that were drawn are
-  converted to a format which is more suitable for the computation: see BITCARD section.
-  the amount of won games over the total number of games played is an approximation
-  of the probability of winning given the known cards.
-  
-  *** EVAL7 & EVAL5
-  in order to determine which player wins the game a score is assigned to the
-  seven cards (hand+table) of each player. this score is the maximum score of
-  the twenty-one combinations of five cards drawn from seven. the eval5 function
-  calculates the score for each of these twenty-one combinations. it should give a higher
-  integer score for a stronger combination, so higher scores are matched first: there's no
-  need to look for three-of-a-kind when we've already found a full-house or a straight or
-  whatever.
-  
-  *** COMP7
-  once the first player's hand has been evaluated, there's no need to *exactly* calculate
-  the score for every other player. instead we just need to compare every combination of
-  5 cards taken from 7 with the score of the first player, until we find one that beats it,
-  ignoring any other combination (or even other players).
-
-*************************************************************************/
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <stdlib.h>
 #include <time.h>
