@@ -6,7 +6,7 @@
 
 To compile the program simply navigate to its directory and type `make`.
 
-All cards are indicated with integer numbers ranging from 0 to 51 included. Numbers 0-12 correspond to 2, 3, ..., Queen, King, Ace of the first seed, numbers 13-25 correspond to 2, 3, ..., Queen, King, Ace of the second seed, and so on.
+All cards are indicated with integer numbers ranging from 0 to 51 included. Numbers 0-12 correspond to 2, 3, ..., Queen, King, Ace of the first suit, numbers 13-25 correspond to 2, 3, ..., Queen, King, Ace of the second suit, and so on.
 
 * `./podds <n> <h1> <h2>` where `<n>` is the number of players in the game, and `<h1> <h2>` is the player's hand.
 
