@@ -1,6 +1,6 @@
 # Podds
 
-`podds` is a command line tool to compute the probability of winning a poker (texas hold-em), given the number of players and your available cards.
+`podds` is a command line tool to compute the probability of winning a (Texas hold 'em) poker round, given the number of players and the available cards.
 
 ## Usage
 
