@@ -1,6 +1,6 @@
 /*
 podds - Texas Hold 'Em Poker odds calculator
-Copyright (C) 2011-2013  Lorenzo Stella
+Copyright (C) 2011-2017  Lorenzo Stella
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
