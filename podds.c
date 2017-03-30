@@ -1,7 +1,7 @@
 /*
 podds - Texas Hold 'Em Poker odds calculator
 Copyright (C) 2011-2013  Lorenzo Stella
-  
+
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -26,11 +26,53 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* total number of games for the simulation */
 #define MAXGAMES        200000
 
+/*~~ Argument parsing ~~~~~~~~~~~~~~~~~*/
+
+#define SYMBOL_TEN    84 // 'T'
+#define SYMBOL_JACK   74 // 'J'
+#define SYMBOL_QUEEN  81 // 'Q'
+#define SYMBOL_KING   75 // 'K'
+#define SYMBOL_ACE    65 // 'A'
+
+#define SYMBOL_HEARTS     104 // 'h'
+#define SYMBOL_DIAMONDS   100 // 'd'
+#define SYMBOL_CLUBS      99  // 'c'
+#define SYMBOL_SPADES     115 // 's'
+
+int char2rank(char c) {
+  // 50 = '2', 57 = '9'
+  if (c >= 50 && c <= 57) return c - 50;
+  else if (c == SYMBOL_TEN) return 8;
+  else if (c == SYMBOL_JACK) return 9;
+  else if (c == SYMBOL_QUEEN) return 10;
+  else if (c == SYMBOL_KING) return 11;
+  else if (c == SYMBOL_ACE) return 12;
+  return -1;
+}
+
+int char2suit(char c) {
+  if (c == SYMBOL_HEARTS) return 0;
+  else if (c == SYMBOL_DIAMONDS) return 1;
+  else if (c == SYMBOL_CLUBS) return 2;
+  else if (c == SYMBOL_SPADES) return 3;
+  return -1;
+}
+
+int string2index(char * str) {
+  int r, s;
+  r = char2rank(str[0]);
+  s = char2suit(str[1]);
+  if (r < 0 || s < 0) return -1;
+  return s*13 + r;
+}
+
 /*~~ Global (shared) data ~~~~~~~~~~~~~*/
+
 int wins = 0, draws = 0;
 int np, kc, as[7];
 
 /*~~ Threading ~~~~~~~~~~~~~~~~~~~~~~~~*/
+
 #include <pthread.h>
 int NUMTHREADS, NUMGAMES, GAMESPERTHREAD;
 pthread_t * tpool;
@@ -76,7 +118,7 @@ void * simulator(void * v) {
 }
 
 /*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*/
-//#ifdef MAIN
+
 int main(int argc, char ** argv) {
   int i, cs0, cs1;
   if (argc < 4) {
@@ -92,7 +134,13 @@ int main(int argc, char ** argv) {
   // read the arguments and create the known cards
   np = atoi(argv[1]);
   kc = argc-2;
-  for (i=0; i<kc; i++) as[i] = atoi(argv[i+2]);
+  for (i=0; i<kc; i++) {
+    as[i] = string2index(argv[i+2]);
+    if (as[i] < 0) {
+      fprintf(stderr, "wrong card identifier: %s\n", argv[i+2]);
+      return 1;
+    }
+  }
   // initialize the rng seed and the mutex
   srand(time(NULL));
   pthread_mutex_init(&tlock, NULL);
@@ -113,81 +161,3 @@ int main(int argc, char ** argv) {
   pthread_mutex_destroy(&tlock);
   return 0;
 }
-//#endif
-
-/*~~ Hand recognition test ~~~~~~~~~~~~*//*
-int main(int argc, char ** argv) {
-  int cs1[] = {14, 2, 21, 7, 35, 18, 19};
-  long long s1;
-  sort(cs1);
-  printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
-  s1 = eval7(cs1);
-  printf("%d\n", hand(s1));
-  return 0;
-}
-
-/*~~ Eval test ~~~~~~~~~~~~~~~~~~~~~~~~*//*
-int main(int argc, char ** argv) {
-  int cs1[] = {14, 2, 21, 20, 35, 18, 19};
-  int cs2[] = {44, 1, 21, 20, 35, 18, 19};
-  long long s1, s2;
-  int res;
-  sort(cs1);
-  sort(cs2);
-  printf("player 1: %d %d %d %d %d %d %d\n", rank(cs1[0]), rank(cs1[1]), rank(cs1[2]), rank(cs1[3]), rank(cs1[4]), rank(cs1[5]), rank(cs1[6]));
-  s1 = eval7(cs1);
-  printf("score=%Ld\n",s1);
-  printf("player 2: %d %d %d %d %d %d %d\n", rank(cs2[0]), rank(cs2[1]), rank(cs2[2]), rank(cs2[3]), rank(cs2[4]), rank(cs2[5]), rank(cs2[6]));
-  s2 = eval7(cs2);
-  printf("score=%Ld\n",s2);
-  if (s1 < s2)
-    printf("player 2 wins\n");
-  if (s1 == s2)
-    printf("draw\n");
-  if (s1 > s2)
-    printf("player 1 wins\n");
-  //printf("score = %Ld\n", s);
-}
-
-/*~~ Games generator ~~~~~~~~~~~~~~~~~~*//*
-#ifdef GENERATOR
-int main(int argc, char ** argv) {
-  int ng = atoi(argv[1]); // number of pairs
-  int i, j;
-  deck * d = newdeck();
-  for (i=0; i<ng; i++) {
-    initdeck(d, 52);
-    for (j=0; j<9; j++)
-      printf("%d ", draw(d));
-    printf("\n");
-  }
-  return 0;
-}
-#endif
-
-/*~~ Games test ~~~~~~~~~~~~~~~~~~~~~~~*//*
-#ifdef TEST
-int main(int argc, char ** argv) {
-  int i, j, c[9], h1[7], h2[7];
-  long long s1, s2;
-  while (scanf("%d %d %d %d %d %d %d %d %d ", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8]) == 9) {
-    h1[0] = c[0];
-    h1[1] = c[1];
-    h2[0] = c[2];
-    h2[1] = c[3];
-    for (i=2; i<7; i++) {
-      h1[i] = c[i+2];
-      h2[i] = c[i+2];
-    }
-    sort(h1);
-    sort(h2);
-    s1 = eval7(h1);
-    s2 = eval7(h2);
-    if (s1 > s2) printf("1\n");
-    else if (s1 < s2) printf("2\n");
-    else printf("0\n");
-  }
-}
-#endif
-
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/

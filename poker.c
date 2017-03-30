@@ -220,4 +220,3 @@ int comp7(int cs[], long long s) {
   }
   return result;
 }
-
