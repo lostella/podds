@@ -68,7 +68,7 @@ int string2index(char * str) {
 
 /*~~ Global (shared) data ~~~~~~~~~~~~~*/
 
-int wins = 0, draws = 0;
+int counters[] = {0,0,0,0,0,0,0,0,0,0,0,0};
 int np, kc, as[7];
 
 /*~~ Threading ~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -81,7 +81,8 @@ pthread_mutex_t tlock;
 void * simulator(void * v) {
   int * ohs = (int *)malloc(2*(np-1)*sizeof(int));
   int cs[7], myas[7], cs0, cs1, result, result1, i, j, k;
-  int mywins = 0, mydraws = 0;
+  int mycounters[] = {0,0,0,0,0,0,0,0,0,0,0,0};
+  // int mywins = 0, mydraws = 0;
   deck * d = newdeck();
   for (i=0; i<kc; i++) {
     pick(d, as[i]);
@@ -105,12 +106,13 @@ void * simulator(void * v) {
       if (result1 < result) result = result1;
       if (result == LOSS) break;
     }
-    if (result == WIN) mywins++;
-    else if (result == DRAW) mydraws++;
+    mycounters[result]++;
+    mycounters[hand(score)]++;
   }
   pthread_mutex_lock(&tlock);
-  wins += mywins;
-  draws += mydraws;
+  for (i=0; i<12; i++) {
+    counters[i] += mycounters[i];
+  }
   pthread_mutex_unlock(&tlock);
   free(ohs);
   free(d);
@@ -120,7 +122,7 @@ void * simulator(void * v) {
 /*~~ Main program ~~~~~~~~~~~~~~~~~~~~~*/
 
 int main(int argc, char ** argv) {
-  int i, cs0, cs1;
+  int i, cs0, cs1, checksum;
   if (argc < 4) {
     fprintf(stderr, "incorrect number of arguments\n");
     fprintf(stderr, "required: <#players> <card1> <card2>\n");
@@ -154,9 +156,30 @@ int main(int argc, char ** argv) {
   for (i=0; i<NUMTHREADS; i++) {
     pthread_join(tpool[i], NULL);
   }
+  // check correctness (sum counters)
+  checksum = 0;
+  for (i=0; i<3; i++) checksum += counters[i];
+  if (checksum != NUMGAMES) {
+    fprintf(stderr, "counters do not sum up\n");
+    return 1;
+  }
+  checksum = 0;
+  for (i=3; i<12; i++) checksum += counters[i];
+  if (checksum != NUMGAMES) {
+    fprintf(stderr, "counters do not sum up\n");
+    return 1;
+  }
   // show the results
-  printf("wins:%.3f\n", ((float)wins)/NUMGAMES);
-  printf("draws:%.3f\n", ((float)draws)/NUMGAMES);
+  printf("win:%.3f\n", ((float)counters[WIN])/NUMGAMES);
+  printf("draw:%.3f\n", ((float)counters[DRAW])/NUMGAMES);
+  printf("pair:%.3f\n", ((float)counters[PAIR])/NUMGAMES);
+  printf("two-pairs:%.3f\n", ((float)counters[TWOPAIRS])/NUMGAMES);
+  printf("three-of-a-kind:%.3f\n", ((float)counters[TOAK])/NUMGAMES);
+  printf("straight:%.3f\n", ((float)counters[STRAIGHT])/NUMGAMES);
+  printf("flush:%.3f\n", ((float)counters[FLUSH])/NUMGAMES);
+  printf("full-house:%.3f\n", ((float)counters[FULLHOUSE])/NUMGAMES);
+  printf("four-of-a-kind:%.3f\n", ((float)counters[FOAK])/NUMGAMES);
+  printf("straight-flush:%.3f\n", ((float)counters[STRFLUSH])/NUMGAMES);
   // clear all
   pthread_mutex_destroy(&tlock);
   return 0;
