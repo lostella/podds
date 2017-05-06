@@ -6,8 +6,10 @@ os:
 compiler:
   - clang
   - gcc
-install:
-  - python3
+before_install:
+  - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get install python3; else brew install python3; fi
 script:
   - make
   - env python3 ./podds-test.py
+notifications:
+  email: false
