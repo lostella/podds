@@ -1,13 +1,11 @@
 # Documentation: http://docs.travis-ci.com/user/languages/c/
 language: c
 os:
-  - linux
   - osx
 compiler:
   - clang
   - gcc
 install:
-  - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get update; sudo apt-get install python3.2; fi
   - if [ $TRAVIS_OS_NAME = osx ]; then brew update; brew install python3; fi
 script:
   - make
