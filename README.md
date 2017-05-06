@@ -1,6 +1,7 @@
 # Podds
 
 `podds` is a command line tool to compute the probability of winning a (Texas hold 'em) poker round, given the number of players and the available cards.
+Probabilities are estimated by sampling random games given the available information.
 
 ## Usage
 
@@ -23,9 +24,9 @@ Each card is represented by a **case sensitive** 2-characters string, according 
 
 **Examples:** the ace of spades is `As`, the 10 of diamonds is `Td` and the 4 of clubs is `4c`.
 
-The results are written onto `stdout`, and error messages (such as when arguments are not correctly formatted) are written to `stderr`. This way `podds` can be easily used from a higher-level interface. The output has the form: `<key>:<value>` and is supposed to be self-descriptive. A typical command-line interaction looks like the following:
+The results are written onto `stdout`, and error messages (such as when arguments are not correctly formatted) are written to `stderr`. This way `podds` can be easily used from a higher-level interface. The output has the form: `<key>:<value>` and is supposed to be self-descriptive.Typical command-line interactions look like the following:
 
-```bash
+```
 bash$ ./podds 5 Ts 9d Js 8h 3c
 cores:4
 games:200000
@@ -39,6 +40,22 @@ flush:0.000
 full-house:0.000
 four-of-a-kind:0.000
 straight-flush:0.000
+```
+
+```
+bash$ ./podds 4 Kd Jd Qs Tc Qd
+cores:4
+games:200000
+win:0.406
+draw:0.045
+pair:0.291
+two-pairs:0.290
+three-of-a-kind:0.051
+straight:0.301
+flush:0.039
+full-house:0.025
+four-of-a-kind:0.001
+straight-flush:0.002
 ```
 
 ## TODO

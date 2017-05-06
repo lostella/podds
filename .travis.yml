@@ -1,0 +1,11 @@
+# Documentation: http://docs.travis-ci.com/user/languages/c/
+language: c
+os:
+  - linux
+  - osx
+compiler:
+  - clang
+  - gcc
+install:
+  - python3
+script: env python3 ./podds-test.py
