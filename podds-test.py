@@ -25,6 +25,8 @@ for args in test_cases.keys():
         p2 = prob_list[k]
         err = abs(p1-p2)/(1+abs(p1))
         if err >= 1e-2:
+            println("test {} failed".format(k))
             sys.exit(1)
 
+println("all tests were succesful")
 sys.exit(0)
