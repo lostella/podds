@@ -24,7 +24,7 @@ Each card is represented by a **case sensitive** 2-characters string, according 
 
 **Examples:** the ace of spades is `As`, the 10 of diamonds is `Td` and the 4 of clubs is `4c`.
 
-The results are written onto `stdout`, and error messages (such as when arguments are not correctly formatted) are written to `stderr`. This way `podds` can be easily used from a higher-level interface. The output has the form: `<key>:<value>` and is supposed to be self-descriptive.Typical command-line interactions look like the following:
+The results are written onto `stdout`, and error messages (such as when arguments are not correctly formatted) are written to `stderr`. This way `podds` can be easily used from a higher-level interface. The output has the form: `<key>:<value>` and is supposed to be self-descriptive.Typical command-line interactions look as follows:
 
 ```
 bash$ ./podds 5 Ts 9d Js 8h 3c
