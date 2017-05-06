@@ -8,4 +8,6 @@ compiler:
   - gcc
 install:
   - python3
-script: env python3 ./podds-test.py
+script:
+  - make
+  - env python3 ./podds-test.py
