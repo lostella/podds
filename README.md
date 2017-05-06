@@ -1,5 +1,7 @@
 # Podds
 
+[![Build Status](https://travis-ci.org/lostella/podds.svg?branch=master)](https://travis-ci.org/lostella/podds)
+
 `podds` is a command line tool to compute the probability of winning a (Texas hold 'em) poker round, given the number of players and the available cards.
 Probabilities are estimated by sampling random games given the available information.
 
