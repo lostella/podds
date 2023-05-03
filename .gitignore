@@ -1,8 +1,2 @@
-!.gitignore
-*~
-poker.py
-podds
-podds-perftest
-
 Cargo.lock
 /target
