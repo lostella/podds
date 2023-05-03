@@ -1,5 +1,101 @@
+use std::str::FromStr;
+
 use itertools::Itertools;
 use rand::Rng;
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum Rank {
+    Two = 0,
+    Three = 1,
+    Four = 2,
+    Five = 3,
+    Six = 4,
+    Seven = 5,
+    Eight = 6,
+    Nine = 7,
+    Ten = 8,
+    Jack = 9,
+    Queen = 10,
+    King = 11,
+    Ace = 12,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum Suit {
+    Hearts = 0,
+    Diamonds = 1,
+    Clubs = 2,
+    Spades = 3,
+}
+
+#[derive(Debug, PartialEq)]
+enum ParseError {
+    Length,
+    Rank,
+    Suit,
+}
+
+impl FromStr for Rank {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.chars().next() {
+            Some('2')  => Ok(Self::Two),
+            Some('3')  => Ok(Self::Three),
+            Some('4')  => Ok(Self::Four),
+            Some('5')  => Ok(Self::Five),
+            Some('6')  => Ok(Self::Six),
+            Some('7')  => Ok(Self::Seven),
+            Some('8')  => Ok(Self::Eight),
+            Some('9')  => Ok(Self::Nine),
+            Some('T') | Some('t') => Ok(Self::Ten),
+            Some('J') | Some('j') => Ok(Self::Jack),
+            Some('Q') | Some('q') => Ok(Self::Queen),
+            Some('K') | Some('k') => Ok(Self::King),
+            Some('A') | Some('a') => Ok(Self::Ace),
+            _ => Err(Self::Err::Rank),
+        }
+    }
+}
+
+impl FromStr for Suit {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.chars().next() {
+            Some('h') | Some('H') => Ok(Self::Hearts),
+            Some('d') | Some('D') => Ok(Self::Diamonds),
+            Some('c') | Some('C') => Ok(Self::Clubs),
+            Some('s') | Some('S') => Ok(Self::Spades),
+            _ => Err(Self::Err::Suit),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct Card {
+    rank: Rank,
+    suit: Suit,
+}
+
+impl FromStr for Card {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() != 2 {
+            return Err(Self::Err::Length)
+        }
+        let rank = Rank::from_str(&s[0..1])?;
+        let suit = Suit::from_str(&s[1..2])?;
+        Ok(Card{rank, suit})
+    }
+}
+
+impl From<Card> for u8 {
+    fn from(card: Card) -> Self {
+        (card.suit as u8) * 13 + (card.rank as u8)
+    }
+}
 
 fn rank(card: u8) -> u8 {
     card % 13
@@ -21,7 +117,7 @@ impl Deck {
     }
 
     fn pick_random(&mut self) -> Result<u8, ()> {
-        if self.cards.len() == 0 {
+        if self.cards.is_empty() {
             return Err(());
         }
         let index = rand::thread_rng().gen_range(0..self.cards.len());
@@ -55,11 +151,11 @@ impl Player {
             self.hand.push(card);
             return Ok(card);
         }
-        return Err(card);
+        Err(card)
     }
 }
 
-pub struct Game {
+struct Game {
     player: Player,
     opponents: Vec<Player>,
     public: Vec<u8>,
@@ -84,12 +180,12 @@ impl Game {
         self.deck.pick(card)?;
         match self.player.give(card) {
             Ok(c) => Ok(c),
-            Err(c) => {
+            Err(_) => {
                 if self.public.len() == 5 {
                     return Err(card);
                 }
                 self.public.push(card);
-                return Ok(card);
+                Ok(card)
             }
         }
     }
@@ -124,11 +220,11 @@ fn eval5(cs: Vec<&u8>) -> i64 {
     let mut count: usize = 1;
     let mut straight: u32 = 1;
     let mut flush: u32 = 1;
-    let mut s0: u8 = suit(*cs[0]);
+    let s0: u8 = suit(*cs[0]);
     let mut r0: u8 = rank(*cs[0]);
     s[0] = (r0 as i64) << 16;
     for i in 1..5 {
-        s[0] |= (rank(*cs[i]) as i64) << (4 - i) * 4;
+        s[0] |= (rank(*cs[i]) as i64) << ((4 - i) * 4);
         if straight > 0
             && rank(*cs[i - 1]) - rank(*cs[i]) != 1
             && !(i == 1 && r0 == 12 && rank(*cs[1]) == 3)
@@ -213,6 +309,48 @@ pub fn comp(cards: &mut [u8; 7], score: i64) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn card_into_u8() {
+        assert_eq!(u8::from(Card{rank: Rank::Ace, suit: Suit::Spades}), 51);
+        assert_eq!(u8::from(Card{rank: Rank::Queen, suit: Suit::Hearts}), 10);
+
+        let val: u8 = Card{rank: Rank::Seven, suit: Suit::Diamonds}.into();
+        assert_eq!(val, 18);
+        let val: u8 = Card{rank: Rank::Four, suit: Suit::Clubs}.into();
+        assert_eq!(val, 28);
+    }
+
+    #[test]
+    fn card_works() {
+        let card = Card{rank: Rank::Seven, suit: Suit::Diamonds};
+        assert_eq!(card.rank as u8, 5);
+        assert_eq!(card.suit as u8, 1)
+    }
+
+    #[test]
+    fn card_from_str_works() {
+        let res = Card::from_str("as");
+        assert_eq!(res, Ok(Card{rank: Rank::Ace, suit: Suit::Spades}));
+
+        let res = Card::from_str("jD");
+        assert_eq!(res, Ok(Card{rank: Rank::Jack, suit: Suit::Diamonds}));
+
+        let res = Card::from_str("4H");
+        assert_eq!(res, Ok(Card{rank: Rank::Four, suit: Suit::Hearts}));
+
+        let res = Card::from_str("Tc");
+        assert_eq!(res, Ok(Card{rank: Rank::Ten, suit: Suit::Clubs}));
+
+        let res = Card::from_str("2sc");
+        assert_eq!(res, Err(ParseError::Length));
+
+        let res = Card::from_str("1D");
+        assert_eq!(res, Err(ParseError::Rank));
+
+        let res = Card::from_str("9y");
+        assert_eq!(res, Err(ParseError::Suit))
+    }
 
     #[test]
     fn pick_random_works() {
