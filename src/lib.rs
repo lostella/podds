@@ -1,194 +1,88 @@
 use std::str::FromStr;
 
 use itertools::Itertools;
-use rand::Rng;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 enum Rank {
-    Two = 0,
-    Three = 1,
-    Four = 2,
-    Five = 3,
-    Six = 4,
-    Seven = 5,
-    Eight = 6,
-    Nine = 7,
-    Ten = 8,
-    Jack = 9,
-    Queen = 10,
-    King = 11,
-    Ace = 12,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine,
+    Ten,
+    Jack,
+    Queen,
+    King,
+    Ace,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 enum Suit {
-    Hearts = 0,
-    Diamonds = 1,
-    Clubs = 2,
-    Spades = 3,
-}
-
-#[derive(Debug, PartialEq)]
-enum ParseError {
-    Length,
-    Rank,
-    Suit,
+    Clubs,
+    Diamonds,
+    Hearts,
+    Spades,
 }
 
 impl FromStr for Rank {
-    type Err = ParseError;
-
+    type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.chars().next() {
-            Some('2')  => Ok(Self::Two),
-            Some('3')  => Ok(Self::Three),
-            Some('4')  => Ok(Self::Four),
-            Some('5')  => Ok(Self::Five),
-            Some('6')  => Ok(Self::Six),
-            Some('7')  => Ok(Self::Seven),
-            Some('8')  => Ok(Self::Eight),
-            Some('9')  => Ok(Self::Nine),
-            Some('T') | Some('t') => Ok(Self::Ten),
-            Some('J') | Some('j') => Ok(Self::Jack),
-            Some('Q') | Some('q') => Ok(Self::Queen),
-            Some('K') | Some('k') => Ok(Self::King),
-            Some('A') | Some('a') => Ok(Self::Ace),
-            _ => Err(Self::Err::Rank),
+        match s {
+            "2" => Ok(Rank::Two),
+            "3" => Ok(Rank::Three),
+            "4" => Ok(Rank::Four),
+            "5" => Ok(Rank::Five),
+            "6" => Ok(Rank::Six),
+            "7" => Ok(Rank::Seven),
+            "8" => Ok(Rank::Eight),
+            "9" => Ok(Rank::Nine),
+            "T" => Ok(Rank::Ten),
+            "J" => Ok(Rank::Jack),
+            "Q" => Ok(Rank::Queen),
+            "K" => Ok(Rank::King),
+            "A" => Ok(Rank::Ace),
+            _ => Err(()),
         }
     }
 }
 
 impl FromStr for Suit {
-    type Err = ParseError;
-
+    type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.chars().next() {
-            Some('h') | Some('H') => Ok(Self::Hearts),
-            Some('d') | Some('D') => Ok(Self::Diamonds),
-            Some('c') | Some('C') => Ok(Self::Clubs),
-            Some('s') | Some('S') => Ok(Self::Spades),
-            _ => Err(Self::Err::Suit),
+        match s {
+            "C" => Ok(Suit::Clubs),
+            "D" => Ok(Suit::Diamonds),
+            "H" => Ok(Suit::Hearts),
+            "S" => Ok(Suit::Spades),
+            _ => Err(()),
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
-struct Card {
+pub struct Card {
     rank: Rank,
     suit: Suit,
 }
 
 impl FromStr for Card {
-    type Err = ParseError;
-
+    type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() != 2 {
-            return Err(Self::Err::Length)
-        }
-        let rank = Rank::from_str(&s[0..1])?;
-        let suit = Suit::from_str(&s[1..2])?;
-        Ok(Card{rank, suit})
+        let rank = s[0..1].parse()?;
+        let suit = s[1..2].parse()?;
+        Ok(Card { rank, suit })
     }
 }
 
-impl From<Card> for u8 {
-    fn from(card: Card) -> Self {
-        (card.suit as u8) * 13 + (card.rank as u8)
-    }
+pub fn rank(card: &Card) -> u8 {
+    card.rank as u8
 }
 
-fn rank(card: u8) -> u8 {
-    card % 13
-}
-
-fn suit(card: u8) -> u8 {
-    card / 13
-}
-
-struct Deck {
-    cards: Vec<u8>,
-}
-
-impl Deck {
-    fn new() -> Self {
-        Self {
-            cards: (0..52).collect::<Vec<u8>>(),
-        }
-    }
-
-    fn pick_random(&mut self) -> Result<u8, ()> {
-        if self.cards.is_empty() {
-            return Err(());
-        }
-        let index = rand::thread_rng().gen_range(0..self.cards.len());
-        let card = self.cards[index];
-        self.cards.remove(index);
-        Ok(card)
-    }
-
-    fn pick(&mut self, card: u8) -> Result<u8, u8> {
-        match self.cards.iter().position(|&c| c == card) {
-            Some(pos) => {
-                self.cards.remove(pos);
-                Ok(card)
-            }
-            None => Err(card),
-        }
-    }
-}
-
-struct Player {
-    hand: Vec<u8>,
-}
-
-impl Player {
-    fn new() -> Self {
-        Player { hand: vec![] }
-    }
-
-    fn give(&mut self, card: u8) -> Result<u8, u8> {
-        if self.hand.len() < 2 {
-            self.hand.push(card);
-            return Ok(card);
-        }
-        Err(card)
-    }
-}
-
-struct Game {
-    player: Player,
-    opponents: Vec<Player>,
-    public: Vec<u8>,
-    deck: Deck,
-}
-
-impl Game {
-    pub fn new(num_players: u8) -> Self {
-        let mut opponents = vec![];
-        for _ in 0..num_players - 1 {
-            opponents.push(Player::new())
-        }
-        Self {
-            player: Player::new(),
-            opponents,
-            public: vec![],
-            deck: Deck::new(),
-        }
-    }
-
-    pub fn deal(&mut self, card: u8) -> Result<u8, u8> {
-        self.deck.pick(card)?;
-        match self.player.give(card) {
-            Ok(c) => Ok(c),
-            Err(_) => {
-                if self.public.len() == 5 {
-                    return Err(card);
-                }
-                self.public.push(card);
-                Ok(card)
-            }
-        }
-    }
+pub fn suit(card: &Card) -> u8 {
+    card.suit as u8
 }
 
 const SFLUSH_SHIFT: u8 = 42;
@@ -204,62 +98,53 @@ const HC_SHIFT: u8 = 0;
 const LOSS: u8 = 0;
 const DRAW: u8 = 1;
 const WIN: u8 = 2;
-const HC: u8 = 3;
-const PAIR: u8 = 4;
-const TWOPAIRS: u8 = 5;
-const TOAK: u8 = 6;
-const STRAIGHT: u8 = 7;
-const FLUSH: u8 = 8;
-const FULLHOUSE: u8 = 9;
-const FOAK: u8 = 10;
-const STRFLUSH: u8 = 11;
 
-fn eval5(cs: Vec<&u8>) -> i64 {
+pub fn eval5(cs: Vec<&Card>) -> i64 {
     assert!(cs.len() == 5);
     let mut s: [i64; 5] = [-1, -1, -1, -1, -1];
     let mut count: usize = 1;
-    let mut straight: u32 = 1;
-    let mut flush: u32 = 1;
-    let s0: u8 = suit(*cs[0]);
-    let mut r0: u8 = rank(*cs[0]);
+    let mut straight = true;
+    let mut flush = true;
+    let s0: u8 = suit(cs[0]);
+    let mut r0: u8 = rank(cs[0]);
     s[0] = (r0 as i64) << 16;
     for i in 1..5 {
-        s[0] |= (rank(*cs[i]) as i64) << ((4 - i) * 4);
-        if straight > 0
-            && rank(*cs[i - 1]) - rank(*cs[i]) != 1
-            && !(i == 1 && r0 == 12 && rank(*cs[1]) == 3)
+        s[0] |= (rank(cs[i]) as i64) << ((4 - i) * 4);
+        if straight
+            && rank(cs[i - 1]) - rank(cs[i]) != 1
+            && !(i == 1 && r0 == 12 && rank(cs[1]) == 3)
         {
-            straight = 0;
+            straight = false;
         }
-        if flush == 1 && suit(*cs[i]) != s0 {
-            flush = 0;
+        if flush && suit(cs[i]) != s0 {
+            flush = false;
         }
-        if rank(*cs[i]) == rank(*cs[i - 1]) {
+        if rank(cs[i]) == rank(cs[i - 1]) {
             count += 1;
         }
-        if i == 4 || rank(*cs[i]) != rank(*cs[i - 1]) {
+        if i == 4 || rank(cs[i]) != rank(cs[i - 1]) {
             if count == 2 && s[2] > -1 {
-                s[1] = rank(*cs[i - 1]) as i64;
+                s[1] = rank(cs[i - 1]) as i64;
             } else if count == 2 {
-                s[2] = rank(*cs[i - 1]) as i64;
+                s[2] = rank(cs[i - 1]) as i64;
             } else if count > 2 {
-                s[count] = rank(*cs[i - 1]) as i64;
+                s[count] = rank(cs[i - 1]) as i64;
             }
             count = 1;
         }
     }
     // straight flush then straight
-    if straight > 0 {
-        if r0 == 12 && rank(*cs[1]) == 3 {
+    if straight {
+        if r0 == 12 && rank(cs[1]) == 3 {
             r0 = 3;
         }
-        if flush > 0 {
+        if flush {
             return (r0 as i64) << SFLUSH_SHIFT;
         }
         return (r0 as i64) << STRAIGHT_SHIFT;
     }
     // flush
-    if flush > 0 {
+    if flush {
         return (1 << FLUSH_SHIFT) | (s[0] << HC_SHIFT);
     }
     // builds bitmask for n-of-a-kind and fullhouse
@@ -285,13 +170,13 @@ fn eval5(cs: Vec<&u8>) -> i64 {
     s[0] << HC_SHIFT
 }
 
-pub fn eval(cards: &mut [u8; 7]) -> Option<i64> {
-    cards.sort_by_key(|&a| u8::MAX - rank(a));
+pub fn eval(cards: &mut [Card; 7]) -> Option<i64> {
+    cards.sort_by_key(|a| u8::MAX - rank(a));
     cards.iter().combinations(5).map(eval5).max()
 }
 
-pub fn comp(cards: &mut [u8; 7], score: i64) -> u8 {
-    cards.sort_by_key(|&a| u8::MAX - rank(a));
+pub fn comp(cards: &mut [Card; 7], score: i64) -> u8 {
+    cards.sort_by_key(|a| u8::MAX - rank(a));
     let mut result: u8 = WIN;
     let mut v: i64;
     for comb5 in cards.iter().combinations(5) {
@@ -309,17 +194,7 @@ pub fn comp(cards: &mut [u8; 7], score: i64) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn card_into_u8() {
-        assert_eq!(u8::from(Card{rank: Rank::Ace, suit: Suit::Spades}), 51);
-        assert_eq!(u8::from(Card{rank: Rank::Queen, suit: Suit::Hearts}), 10);
-
-        let val: u8 = Card{rank: Rank::Seven, suit: Suit::Diamonds}.into();
-        assert_eq!(val, 18);
-        let val: u8 = Card{rank: Rank::Four, suit: Suit::Clubs}.into();
-        assert_eq!(val, 28);
-    }
+    use tests::Bencher;
 
     #[test]
     fn card_works() {
@@ -330,77 +205,38 @@ mod tests {
 
     #[test]
     fn card_from_str_works() {
-        let res = Card::from_str("as");
+        let res = Card::from_str("AS");
         assert_eq!(res, Ok(Card{rank: Rank::Ace, suit: Suit::Spades}));
 
-        let res = Card::from_str("jD");
+        let res = Card::from_str("JD");
         assert_eq!(res, Ok(Card{rank: Rank::Jack, suit: Suit::Diamonds}));
 
         let res = Card::from_str("4H");
         assert_eq!(res, Ok(Card{rank: Rank::Four, suit: Suit::Hearts}));
 
-        let res = Card::from_str("Tc");
+        let res = Card::from_str("TC");
         assert_eq!(res, Ok(Card{rank: Rank::Ten, suit: Suit::Clubs}));
 
-        let res = Card::from_str("2sc");
-        assert_eq!(res, Err(ParseError::Length));
+        let res = Card::from_str("2s");
+        assert_eq!(res, Err(()));
 
         let res = Card::from_str("1D");
-        assert_eq!(res, Err(ParseError::Rank));
+        assert_eq!(res, Err(()));
 
         let res = Card::from_str("9y");
-        assert_eq!(res, Err(ParseError::Suit))
-    }
-
-    #[test]
-    fn pick_random_works() {
-        let mut deck = Deck::new();
-        for _ in 0..52 {
-            deck.pick_random();
-        }
-    }
-
-    #[test]
-    fn pick_works() {
-        let mut deck = Deck::new();
-        for card in [13, 42, 17, 31, 50] {
-            assert_eq!(deck.pick(card), Ok(card))
-        }
-        for card in [13, 42, 17, 31, 50] {
-            assert_eq!(deck.pick(card), Err(card))
-        }
-    }
-
-    #[test]
-    fn give_works() {
-        let mut player = Player::new();
-        for card in [13, 42] {
-            assert_eq!(player.give(card), Ok(card))
-        }
-        assert_eq!(player.give(17), Err(17))
-    }
-
-    #[test]
-    fn deal_works() {
-        let mut game = Game::new(3);
-        for card in [13, 42, 17, 31, 50] {
-            assert_eq!(game.deal(card), Ok(card))
-        }
-        for card in [42, 31] {
-            assert_eq!(game.deal(card), Err(card))
-        }
-        for card in [6, 9] {
-            assert_eq!(game.deal(card), Ok(card))
-        }
-        for card in [19, 37] {
-            assert_eq!(game.deal(card), Err(card))
-        }
+        assert_eq!(res, Err(()))
     }
 
     #[test]
     fn eval5_straight_flush() {
-        let mut cards: [u8; 5] = [0, 1, 2, 3, 4];
-        cards.sort_by_key(|&a| u8::MAX - rank(a));
+        let mut cards: [Card; 5] = [
+            Card::from_str("2H").unwrap(),
+            Card::from_str("3H").unwrap(),
+            Card::from_str("4H").unwrap(),
+            Card::from_str("5H").unwrap(),
+            Card::from_str("6H").unwrap(),
+        ];
+        cards.sort_by_key(|a| u8::MAX - rank(a));
         assert_eq!(
             cards.iter().combinations(5).map(eval5).max(),
             Some(17592186044416)
@@ -409,8 +245,14 @@ mod tests {
 
     #[test]
     fn eval5_straight() {
-        let mut cards: [u8; 5] = [13, 14, 15, 3, 4];
-        cards.sort_by_key(|&a| u8::MAX - rank(a));
+        let mut cards: [Card; 5] = [
+            Card::from_str("2D").unwrap(),
+            Card::from_str("3D").unwrap(),
+            Card::from_str("4D").unwrap(),
+            Card::from_str("5H").unwrap(),
+            Card::from_str("6H").unwrap(),
+        ];
+        cards.sort_by_key(|a| u8::MAX - rank(a));
         assert_eq!(
             cards.iter().combinations(5).map(eval5).max(),
             Some(17179869184)
@@ -419,8 +261,14 @@ mod tests {
 
     #[test]
     fn eval5_flush() {
-        let mut cards: [u8; 5] = [0, 2, 4, 6, 8];
-        cards.sort_by_key(|&a| u8::MAX - rank(a));
+        let mut cards: [Card; 5] = [
+            Card::from_str("2H").unwrap(),
+            Card::from_str("4H").unwrap(),
+            Card::from_str("6H").unwrap(),
+            Card::from_str("8H").unwrap(),
+            Card::from_str("TH").unwrap(),
+        ];
+        cards.sort_by_key(|a| u8::MAX - rank(a));
         assert_eq!(
             cards.iter().combinations(5).map(eval5).max(),
             Some(68720026656)
@@ -429,7 +277,15 @@ mod tests {
 
     #[test]
     fn eval_works() {
-        let mut cards: [u8; 7] = [13, 19, 21, 42, 49, 30, 27];
+        let mut cards: [Card; 7] = [
+            Card::from_str("2D").unwrap(),
+            Card::from_str("8D").unwrap(),
+            Card::from_str("TD").unwrap(),
+            Card::from_str("5S").unwrap(),
+            Card::from_str("QS").unwrap(),
+            Card::from_str("6C").unwrap(),
+            Card::from_str("3C").unwrap(),
+        ];
         assert_eq!(eval(&mut cards), Some(689731))
     }
 }
